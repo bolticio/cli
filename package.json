@@ -7,7 +7,14 @@
 		"boltic": "index.js"
 	},
 	"author": "Ahmed Sakri <ahmedsakri@gofynd.com>",
-	"homepage": "https://www.boltic.io",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/bolticio/cli.git"
+	},
+	"homepage": "https://github.com/bolticio/cli#readme",
+	"bugs": {
+		"url": "https://github.com/bolticio/cli/issues"
+	},
 	"scripts": {
 		"start": "node index.js",
 		"dev": "nodemon index.js",

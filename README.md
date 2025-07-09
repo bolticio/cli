@@ -3,6 +3,7 @@
 > A powerful CLI tool for creating, managing, and publishing Boltic integrations.
 
 [![NPM Version](https://img.shields.io/npm/v/@boltic/cli)](https://www.npmjs.com/package/@boltic/cli)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Repo-blue?logo=github)](https://github.com/<your-username>/<your-repo>)
 [![License](https://img.shields.io/npm/l/@boltic/cli)](./LICENSE)
 
 ---
