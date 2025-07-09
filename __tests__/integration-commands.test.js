@@ -59,6 +59,8 @@ const mockChalk = {
 	},
 };
 mockChalk.cyan.bold = jest.fn((str) => str);
+mockChalk.green.bold = jest.fn((str) => str);
+mockChalk.red.bold = jest.fn((str) => str);
 
 jest.mock("chalk", () => mockChalk);
 
@@ -797,6 +799,1141 @@ describe("Integration Commands", () => {
 			await expect(
 				IntegrationCommands.default.execute(["sync"])
 			).rejects.toThrow();
+		});
+
+		it("should handle invalid trigger_type in sync", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue(
+				'{"name": "test", "id": 123, "trigger_type": "InvalidTrigger"}'
+			);
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Invalid trigger_type "InvalidTrigger"')
+			);
+		});
+
+		it("should handle invalid trigger_type in publish", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue(
+				'{"name": "test", "id": 123, "trigger_type": "InvalidTrigger"}'
+			);
+
+			await IntegrationCommands.default.execute(["publish"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Invalid trigger_type "InvalidTrigger"')
+			);
+		});
+
+		it("should handle no spec.json in sync", async () => {
+			mockExists.mockReturnValue(false);
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			// Should exit early without error since no spec.json exists
+			expect(mockSyncIntegration).not.toHaveBeenCalled();
+		});
+
+		it("should handle no spec.json in publish", async () => {
+			mockExists.mockReturnValue(false);
+
+			await IntegrationCommands.default.execute(["publish"]);
+
+			// Should exit early without error since no spec.json exists
+			expect(mockSyncIntegration).not.toHaveBeenCalled();
+		});
+
+		it("should handle sync integration failure", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(false);
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Failed to syncing integration")
+			);
+		});
+
+		it("should handle sync integration returning data with message", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(null);
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("API Error: Integration syncing failed")
+			);
+		});
+
+		it("should handle publish sync failure", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(false);
+
+			await IntegrationCommands.default.execute(["publish"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Error publishing integration")
+			);
+		});
+
+		it("should handle integration group invalid response", async () => {
+			mockGetIntegrationGroups.mockResolvedValue("invalid response");
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Invalid response format")
+			);
+		});
+
+		it("should handle integration group null response", async () => {
+			mockGetIntegrationGroups.mockResolvedValue(null);
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Invalid response format")
+			);
+		});
+
+		it("should handle edit integration invalid response", async () => {
+			mockListAllIntegrations.mockResolvedValue("invalid response");
+
+			await IntegrationCommands.default.execute(["edit"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Invalid response format")
+			);
+		});
+
+		it("should handle edit integration null response", async () => {
+			mockListAllIntegrations.mockResolvedValue(null);
+
+			await IntegrationCommands.default.execute(["edit"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Invalid response format")
+			);
+		});
+
+		it("should handle user force closed prompt in create", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("⚠️ Operation cancelled by user")
+			);
+		});
+
+		it("should handle user force closed prompt in edit", async () => {
+			mockListAllIntegrations.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await IntegrationCommands.default.execute(["edit"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("⚠️ Operation cancelled by user")
+			);
+		});
+
+		it("should handle user force closed prompt in pull", async () => {
+			mockExists.mockReturnValue(false);
+			mockListAllIntegrations.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await IntegrationCommands.default.execute(["pull"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("⚠️ Operation cancelled by user")
+			);
+		});
+
+		it("should handle non-svg file in create", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput.mockResolvedValue("Test_Integration");
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.png");
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("⚠️  File selection was cancelled")
+			);
+		});
+
+		it("should handle invalid SVG file path in create", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput.mockResolvedValue("Test_Integration");
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.txt");
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("⚠️  File selection was cancelled")
+			);
+		});
+
+		it("should handle missing environment credentials in status", async () => {
+			mockGetCurrentEnv.mockResolvedValue({
+				token: null,
+				session: null,
+			});
+
+			await IntegrationCommands.default.execute(["status"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Authentication required")
+			);
+		});
+
+		it("should handle missing directory in pull with spec.json", async () => {
+			mockExists.mockReturnValueOnce(true).mockReturnValueOnce(false);
+			mockReadFile.mockReturnValue(
+				'{"id": 123, "name": "Test Integration"}'
+			);
+			mockPullIntegration.mockResolvedValue({ name: "Test Integration" });
+			mockMkdir.mockImplementation(() => {});
+			mockCreateExistingIntegrationsFolder.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["pull"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Warning: Directory")
+			);
+			expect(mockMkdir).toHaveBeenCalled();
+		});
+
+		it("should handle pull without spec.json and invalid integrations response", async () => {
+			mockExists.mockReturnValue(false);
+			mockListAllIntegrations.mockResolvedValue("invalid response");
+
+			await IntegrationCommands.default.execute(["pull"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Invalid response format")
+			);
+		});
+
+		it("should handle pull without spec.json and null integrations response", async () => {
+			mockExists.mockReturnValue(false);
+			mockListAllIntegrations.mockResolvedValue(null);
+
+			await IntegrationCommands.default.execute(["pull"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Invalid response format")
+			);
+		});
+
+		it("should handle pull without spec.json and empty integrations", async () => {
+			mockExists.mockReturnValue(false);
+			mockListAllIntegrations.mockResolvedValue([]);
+
+			await IntegrationCommands.default.execute(["pull"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("❌ No integrations found")
+			);
+		});
+
+		it("should handle pull failure in pull command", async () => {
+			mockExists.mockReturnValue(false);
+			mockListAllIntegrations.mockResolvedValue([
+				{
+					id: 1,
+					name: "Test Integration",
+					activity_type: "customActivity",
+				},
+			]);
+			mockSearch.mockResolvedValue({ id: 1, name: "Test Integration" });
+			mockPullIntegration.mockResolvedValue(null);
+
+			await IntegrationCommands.default.execute(["pull"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"❌ Failed to fetch integration details"
+				)
+			);
+		});
+
+		it("should handle trigger description validation", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput
+				.mockResolvedValueOnce("Test_Integration") // name
+				.mockResolvedValueOnce("Activity description") // activity description
+				.mockResolvedValueOnce("AI activity description") // activity ai description
+				.mockResolvedValueOnce("Trigger description") // trigger description
+				.mockResolvedValueOnce("AI trigger description"); // trigger ai description
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.svg");
+			mockUploadFileToCloud.mockResolvedValue({
+				url: "https://example.com/icon.svg",
+			});
+			mockSearch.mockResolvedValue(1);
+			mockConfirm
+				.mockResolvedValueOnce(true) // activity
+				.mockResolvedValueOnce(true) // trigger
+				.mockResolvedValueOnce(true); // create catalogue
+			mockSaveIntegration.mockResolvedValue({ id: 123 });
+			mockCreateIntegrationFolderStructure.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(mockSaveIntegration).toHaveBeenCalled();
+		});
+
+		it("should handle handleTest with various scenarios", async () => {
+			const mockSpawn = jest.fn();
+			const mockChildProcess = {
+				spawn: mockSpawn,
+			};
+
+			jest.doMock("child_process", () => mockChildProcess);
+
+			mockExists.mockReturnValue(true);
+
+			// Mock fs.existsSync to return false for all test directories initially
+			mockExists.mockImplementation((path) => {
+				if (path.includes("test")) return true;
+				return false;
+			});
+
+			// Mock readFileSync for package.json
+			mockReadFile.mockReturnValue(
+				'{"devDependencies": {"jest": "^29.0.0"}}'
+			);
+
+			// Mock spawn to simulate successful test run
+			const mockProcess = {
+				on: jest.fn((event, callback) => {
+					if (event === "close") {
+						callback(0); // Success
+					}
+				}),
+			};
+			mockSpawn.mockReturnValue(mockProcess);
+
+			await IntegrationCommands.default.execute(["test"]);
+
+			expect(mockSpawn).toHaveBeenCalledWith(
+				"npx",
+				["jest", "test", "--verbose"],
+				{
+					stdio: "inherit",
+					shell: true,
+				}
+			);
+		});
+
+		it("should handle handleTest without test directory", async () => {
+			mockExists.mockReturnValue(false);
+
+			await IntegrationCommands.default.execute(["test"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("No test directory found")
+			);
+		});
+
+		it("should handle handleTest without Jest", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"devDependencies": {}}');
+
+			await IntegrationCommands.default.execute(["test"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Jest is not installed")
+			);
+		});
+
+		it("should handle handleTest with malformed package.json", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue("invalid json");
+
+			await IntegrationCommands.default.execute(["test"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Could not read package.json")
+			);
+		});
+
+		it("should handle handleTest with missing package.json", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("test")) return true;
+				if (path.includes("package.json")) return false;
+				return false;
+			});
+
+			await IntegrationCommands.default.execute(["test"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Jest is not installed")
+			);
+		});
+
+		it("should handle validation errors array", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockValidateIntegrationSchemas.mockReturnValue({
+				success: false,
+				errors: null, // null instead of array
+			});
+			mockUpdateIntegration.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			// Should not crash when errors is null
+			expect(mockValidateIntegrationSchemas).toHaveBeenCalled();
+		});
+
+		it("should handle undefined validation errors", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockValidateIntegrationSchemas.mockReturnValue({
+				success: false,
+				errors: undefined, // undefined instead of array
+			});
+			mockUpdateIntegration.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			// Should not crash when errors is undefined
+			expect(mockValidateIntegrationSchemas).toHaveBeenCalled();
+		});
+
+		it("should handle input validation with too long names", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput.mockImplementation(async ({ validate }) => {
+				// Test the validation function with long name
+				expect(validate("a".repeat(51))).toBe(
+					"Name cannot exceed 50 characters"
+				);
+				// Test with invalid characters
+				expect(validate("test123")).toBe(
+					"Name can only contain letters and underscores (no numbers or hyphens)"
+				);
+				// Test with empty name
+				expect(validate("")).toBe("Name is required");
+				// Test with name that has spaces (should be transformed)
+				expect(validate("Test Name")).toBe(true);
+				return "Valid_Name";
+			});
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.svg");
+			mockUploadFileToCloud.mockResolvedValue({
+				url: "https://example.com/icon.svg",
+			});
+			mockSearch.mockResolvedValue(1);
+			mockConfirm.mockResolvedValue(true);
+			mockSaveIntegration.mockResolvedValue({ id: 123 });
+			mockCreateIntegrationFolderStructure.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(mockInput).toHaveBeenCalled();
+		});
+
+		it("should handle activity description validation", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput
+				.mockResolvedValueOnce("Test_Integration")
+				.mockImplementation(async ({ validate }) => {
+					// Test activity description validation
+					expect(validate("")).toBe(
+						"Workflow Activity Description is required"
+					);
+					expect(validate("a".repeat(301))).toBe(
+						"Workflow Activity Description must not exceed 300 characters"
+					);
+					return "Valid description";
+				});
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.svg");
+			mockUploadFileToCloud.mockResolvedValue({
+				url: "https://example.com/icon.svg",
+			});
+			mockSearch.mockResolvedValue(1);
+			mockConfirm
+				.mockResolvedValueOnce(true) // activity
+				.mockResolvedValueOnce(false) // trigger
+				.mockResolvedValueOnce(true); // create catalogue
+			mockSaveIntegration.mockResolvedValue({ id: 123 });
+			mockCreateIntegrationFolderStructure.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(mockInput).toHaveBeenCalled();
+		});
+
+		it("should handle trigger description validation", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput
+				.mockResolvedValueOnce("Test_Integration")
+				.mockResolvedValueOnce("Activity description")
+				.mockResolvedValueOnce("Activity AI description")
+				.mockImplementation(async ({ validate }) => {
+					// Test trigger description validation
+					expect(validate("")).toBe(
+						"Workflow Trigger Description is required"
+					);
+					expect(validate("a".repeat(301))).toBe(
+						"Workflow Description must not exceed 300 characters"
+					);
+					return "Valid trigger description";
+				});
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.svg");
+			mockUploadFileToCloud.mockResolvedValue({
+				url: "https://example.com/icon.svg",
+			});
+			mockSearch.mockResolvedValue(1);
+			mockConfirm
+				.mockResolvedValueOnce(true) // activity
+				.mockResolvedValueOnce(true) // trigger
+				.mockResolvedValueOnce(true); // create catalogue
+			mockSaveIntegration.mockResolvedValue({ id: 123 });
+			mockCreateIntegrationFolderStructure.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(mockInput).toHaveBeenCalled();
+		});
+
+		it("should handle AI description validation", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput
+				.mockResolvedValueOnce("Test_Integration")
+				.mockResolvedValueOnce("Activity description")
+				.mockImplementation(async ({ validate }) => {
+					// Test AI description validation
+					expect(validate("")).toBe(
+						"Workflow Activity AI Description is required"
+					);
+					expect(validate("a".repeat(301))).toBe(
+						"Workflow Activity AI Description must not exceed 300 characters"
+					);
+					return "Valid AI description";
+				});
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.svg");
+			mockUploadFileToCloud.mockResolvedValue({
+				url: "https://example.com/icon.svg",
+			});
+			mockSearch.mockResolvedValue(1);
+			mockConfirm
+				.mockResolvedValueOnce(true) // activity
+				.mockResolvedValueOnce(false) // trigger
+				.mockResolvedValueOnce(true); // create catalogue
+			mockSaveIntegration.mockResolvedValue({ id: 123 });
+			mockCreateIntegrationFolderStructure.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(mockInput).toHaveBeenCalled();
+		});
+
+		it("should handle trigger AI description validation", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput
+				.mockResolvedValueOnce("Test_Integration")
+				.mockResolvedValueOnce("Activity description")
+				.mockResolvedValueOnce("Activity AI description")
+				.mockResolvedValueOnce("Trigger description")
+				.mockImplementation(async ({ validate }) => {
+					// Test trigger AI description validation
+					expect(validate("")).toBe(
+						"Workflow Trigger AI Description is required"
+					);
+					expect(validate("a".repeat(301))).toBe(
+						"Workflow Trigger AI Description must not exceed 300 characters"
+					);
+					return "Valid trigger AI description";
+				});
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.svg");
+			mockUploadFileToCloud.mockResolvedValue({
+				url: "https://example.com/icon.svg",
+			});
+			mockSearch.mockResolvedValue(1);
+			mockConfirm
+				.mockResolvedValueOnce(true) // activity
+				.mockResolvedValueOnce(true) // trigger
+				.mockResolvedValueOnce(true); // create catalogue
+			mockSaveIntegration.mockResolvedValue({ id: 123 });
+			mockCreateIntegrationFolderStructure.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(mockInput).toHaveBeenCalled();
+		});
+
+		it("should handle publish with missing sync data", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(false);
+
+			await IntegrationCommands.default.execute(["publish"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Error publishing integration")
+			);
+		});
+
+		it("should handle publish with sync data containing message", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue({
+				message: "Custom sync error",
+			});
+			mockSendIntegrationForReview.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["publish"]);
+
+			// When sync returns an object with message, it's truthy so it goes to review
+			expect(mockSendIntegrationForReview).toHaveBeenCalled();
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"✅ Integration sent to review successfully"
+				)
+			);
+		});
+
+		it("should handle readSchemaFiles with non-JSON files", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockReaddir.mockReturnValue([
+				"resource1.json",
+				"resource2.txt",
+				"resource3.json",
+			]);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockPurgeCache.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(mockReaddir).toHaveBeenCalled();
+		});
+
+		it("should handle readSchemaFiles with missing authentication docs", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("spec.json")) return true;
+				if (path.includes("base.json")) return true;
+				if (path.includes("webhook.json")) return true;
+				if (path.includes("resources")) return true;
+				if (path.includes("Authentication.mdx")) return false;
+				if (path.includes("Documentation.mdx")) return true;
+				return false;
+			});
+			mockReadFile.mockImplementation((path) => {
+				if (path.includes("spec.json"))
+					return '{"name": "test", "id": 123}';
+				if (path.includes("Documentation.mdx")) return "General docs";
+				return '{"test": "data"}';
+			});
+			mockReaddir.mockReturnValue(["resource1.json"]);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockPurgeCache.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(mockExists).toHaveBeenCalled();
+		});
+
+		it("should handle readSchemaFiles with missing documentation", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("spec.json")) return true;
+				if (path.includes("base.json")) return true;
+				if (path.includes("webhook.json")) return true;
+				if (path.includes("resources")) return true;
+				if (path.includes("Authentication.mdx")) return true;
+				if (path.includes("Documentation.mdx")) return false;
+				return false;
+			});
+			mockReadFile.mockImplementation((path) => {
+				if (path.includes("spec.json"))
+					return '{"name": "test", "id": 123}';
+				if (path.includes("Authentication.mdx")) return "Auth docs";
+				return '{"test": "data"}';
+			});
+			mockReaddir.mockReturnValue(["resource1.json"]);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockPurgeCache.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(mockExists).toHaveBeenCalled();
+		});
+
+		it("should handle readSchemaFiles with missing resources directory", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("spec.json")) return true;
+				if (path.includes("base.json")) return true;
+				if (path.includes("webhook.json")) return true;
+				if (path.includes("resources")) return false;
+				if (path.includes("Authentication.mdx")) return true;
+				if (path.includes("Documentation.mdx")) return true;
+				return false;
+			});
+			mockReadFile.mockImplementation((path) => {
+				if (path.includes("spec.json"))
+					return '{"name": "test", "id": 123}';
+				if (path.includes("Authentication.mdx")) return "Auth docs";
+				if (path.includes("Documentation.mdx")) return "General docs";
+				return '{"test": "data"}';
+			});
+			mockSyncIntegration.mockResolvedValue(true);
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockPurgeCache.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(mockExists).toHaveBeenCalled();
+		});
+
+		it("should handle readSchemaFiles with missing authentication.json", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("spec.json")) return true;
+				if (path.includes("base.json")) return true;
+				if (path.includes("webhook.json")) return true;
+				if (path.includes("resources")) return true;
+				if (path.includes("authentication.json")) return false;
+				if (path.includes("Authentication.mdx")) return true;
+				if (path.includes("Documentation.mdx")) return true;
+				return false;
+			});
+			mockReadFile.mockImplementation((path) => {
+				if (path.includes("spec.json"))
+					return '{"name": "test", "id": 123}';
+				if (path.includes("Authentication.mdx")) return "Auth docs";
+				if (path.includes("Documentation.mdx")) return "General docs";
+				return '{"test": "data"}';
+			});
+			mockReaddir.mockReturnValue(["resource1.json"]);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockPurgeCache.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(mockExists).toHaveBeenCalled();
+		});
+
+		it("should handle readSchemaFiles with missing base.json", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("spec.json")) return true;
+				if (path.includes("base.json")) return false;
+				if (path.includes("webhook.json")) return true;
+				if (path.includes("resources")) return true;
+				if (path.includes("authentication.json")) return true;
+				if (path.includes("Authentication.mdx")) return true;
+				if (path.includes("Documentation.mdx")) return true;
+				return false;
+			});
+			mockReadFile.mockImplementation((path) => {
+				if (path.includes("spec.json"))
+					return '{"name": "test", "id": 123}';
+				if (path.includes("Authentication.mdx")) return "Auth docs";
+				if (path.includes("Documentation.mdx")) return "General docs";
+				return '{"test": "data"}';
+			});
+			mockReaddir.mockReturnValue(["resource1.json"]);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockPurgeCache.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(mockExists).toHaveBeenCalled();
+		});
+
+		it("should handle readSchemaFiles with missing webhook.json", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("spec.json")) return true;
+				if (path.includes("base.json")) return true;
+				if (path.includes("webhook.json")) return false;
+				if (path.includes("resources")) return true;
+				if (path.includes("authentication.json")) return true;
+				if (path.includes("Authentication.mdx")) return true;
+				if (path.includes("Documentation.mdx")) return true;
+				return false;
+			});
+			mockReadFile.mockImplementation((path) => {
+				if (path.includes("spec.json"))
+					return '{"name": "test", "id": 123}';
+				if (path.includes("Authentication.mdx")) return "Auth docs";
+				if (path.includes("Documentation.mdx")) return "General docs";
+				return '{"test": "data"}';
+			});
+			mockReaddir.mockReturnValue(["resource1.json"]);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockPurgeCache.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["sync"]);
+
+			expect(mockExists).toHaveBeenCalled();
+		});
+
+		it("should handle name transformation", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput.mockImplementation(async ({ transform }) => {
+				// Test the transform function
+				expect(transform("Test Name")).toBe("Test_Name");
+				expect(transform("  Test   Name  ")).toBe("Test_Name");
+				expect(transform("Test-Name")).toBe("Test-Name");
+				return "Valid_Name";
+			});
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.svg");
+			mockUploadFileToCloud.mockResolvedValue({
+				url: "https://example.com/icon.svg",
+			});
+			mockSearch.mockResolvedValue(1);
+			mockConfirm.mockResolvedValue(true);
+			mockSaveIntegration.mockResolvedValue({ id: 123 });
+			mockCreateIntegrationFolderStructure.mockResolvedValue();
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(mockInput).toHaveBeenCalled();
+		});
+
+		it("should handle status command with integration metadata", async () => {
+			mockListAllIntegrations.mockResolvedValue([
+				{
+					id: 123,
+					name: "Test Integration",
+					activity_type: "customActivity",
+				},
+			]);
+			mockSearch.mockResolvedValue(123);
+			mockGetIntegrationById.mockResolvedValue({
+				id: 123,
+				name: "Test Integration",
+				slug: "test-integration",
+				activity_type: "customActivity",
+				trigger_type: "CloudTrigger",
+				description: "Test description",
+				status: "published",
+				active: true,
+				created_at: "2023-01-01T00:00:00Z",
+				updated_at: "2023-01-02T00:00:00Z",
+				created_by: "user1",
+				modified_by: "user2",
+				documentation: "Test docs",
+				meta: {
+					ai_description: "AI description",
+					is_trigger: true,
+				},
+			});
+
+			await IntegrationCommands.default.execute(["status"]);
+
+			expect(mockGetIntegrationById).toHaveBeenCalled();
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("=== Integration Details ===")
+			);
+		});
+
+		it("should handle test command with invalid custom path", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("--path")) return false;
+				return false;
+			});
+
+			await IntegrationCommands.default.execute([
+				"test",
+				"--path",
+				"/invalid/path",
+			]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Error: The specified path does not exist"
+				)
+			);
+		});
+
+		it("should handle publish review failure", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockSendIntegrationForReview.mockResolvedValue(false);
+
+			await IntegrationCommands.default.execute(["publish"]);
+
+			expect(mockSendIntegrationForReview).toHaveBeenCalled();
+			// Should not show success message when review fails
+			expect(consoleSpy).not.toHaveBeenCalledWith(
+				expect.stringContaining(
+					"✅ Integration sent to review successfully"
+				)
+			);
+		});
+
+		it("should handle edit with folder creation failure", async () => {
+			mockListAllIntegrations.mockResolvedValue([
+				{
+					id: 1,
+					name: "Test Integration",
+					activity_type: "customActivity",
+				},
+			]);
+			mockSearch.mockResolvedValue({
+				id: 1,
+				name: "Test Integration",
+				activity_type: "customActivity",
+			});
+			mockEditIntegration.mockResolvedValue({
+				id: 1,
+				name: "Test Integration",
+			});
+			mockCreateExistingIntegrationsFolder.mockResolvedValue(false);
+
+			await IntegrationCommands.default.execute(["edit"]);
+
+			expect(mockCreateExistingIntegrationsFolder).toHaveBeenCalled();
+			// Should not show success message when folder creation fails
+			expect(consoleSpy).not.toHaveBeenCalledWith(
+				expect.stringContaining(
+					"✅ Integration folder structure created successfully"
+				)
+			);
+		});
+
+		it("should handle status with inactive integration", async () => {
+			mockListAllIntegrations.mockResolvedValue([
+				{
+					id: 123,
+					name: "Test Integration",
+					activity_type: "customActivity",
+				},
+			]);
+			mockSearch.mockResolvedValue(123);
+			mockGetIntegrationById.mockResolvedValue({
+				id: 123,
+				name: "Test Integration",
+				status: "draft",
+				active: false,
+				created_at: "2023-01-01T00:00:00Z",
+				updated_at: "2023-01-02T00:00:00Z",
+				created_by: "user1",
+				modified_by: "user2",
+				meta: {
+					ai_description: null,
+					is_trigger: false,
+				},
+			});
+
+			await IntegrationCommands.default.execute(["status"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("Active: No")
+			);
+		});
+
+		it("should handle status with missing meta", async () => {
+			mockListAllIntegrations.mockResolvedValue([
+				{
+					id: 123,
+					name: "Test Integration",
+					activity_type: "customActivity",
+				},
+			]);
+			mockSearch.mockResolvedValue(123);
+			mockGetIntegrationById.mockResolvedValue({
+				id: 123,
+				name: "Test Integration",
+				status: "draft",
+				active: false,
+				created_at: "2023-01-01T00:00:00Z",
+				updated_at: "2023-01-02T00:00:00Z",
+				created_by: "user1",
+				modified_by: "user2",
+				meta: null,
+			});
+
+			await IntegrationCommands.default.execute(["status"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining("AI Description: N/A")
+			);
+		});
+
+		it("should handle pull with custom path validation error", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path === "/invalid/path") return false;
+				return true;
+			});
+
+			await IntegrationCommands.default.execute([
+				"pull",
+				"--path",
+				"/invalid/path",
+			]);
+
+			expect(mockExists).toHaveBeenCalledWith("/invalid/path");
+		});
+
+		it("should handle create with icon file validation - both checks", async () => {
+			mockGetIntegrationGroups.mockResolvedValue([
+				{ id: 1, name: "Test" },
+			]);
+			mockInput.mockResolvedValue("Test_Integration");
+			mockPickSvgFile.mockResolvedValue("/path/to/icon.txt"); // Not SVG
+			mockUploadFileToCloud.mockResolvedValue({
+				url: "https://example.com/icon.svg",
+			});
+			mockSearch.mockResolvedValue(1);
+			mockConfirm
+				.mockResolvedValueOnce(true) // activity
+				.mockResolvedValueOnce(false) // trigger
+				.mockResolvedValueOnce(false); // create catalogue
+
+			await IntegrationCommands.default.execute(["create"]);
+
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"File selection was cancelled or not a valid SVG"
+				)
+			);
+		});
+
+		it("should handle edit with search filter for integration choices", async () => {
+			mockListAllIntegrations.mockResolvedValue([
+				{
+					id: 1,
+					name: "Test Integration",
+					status: "draft",
+					activity_type: "customActivity",
+				},
+				{
+					id: 2,
+					name: "Another Integration",
+					status: "published",
+					trigger_type: "CloudTrigger",
+				},
+			]);
+			mockSearch.mockImplementation(async ({ source }) => {
+				const choices = await source("test");
+				return choices[0];
+			});
+			mockEditIntegration.mockResolvedValue({
+				integration: { id: 1, name: "Test Integration" },
+			});
+			mockCreateExistingIntegrationsFolder.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["edit"]);
+
+			expect(mockEditIntegration).toHaveBeenCalled();
+		});
+
+		it("should handle pull with search filter for integration choices", async () => {
+			mockExists.mockImplementation((path) => {
+				if (path.includes("spec.json")) return false;
+				return true;
+			});
+			mockListAllIntegrations.mockResolvedValue([
+				{
+					id: 1,
+					name: "Test Integration",
+					status: "draft",
+					activity_type: "customActivity",
+				},
+				{
+					id: 2,
+					name: "Another Integration",
+					status: "published",
+					trigger_type: "CloudTrigger",
+				},
+			]);
+			mockSearch.mockImplementation(async ({ source }) => {
+				const choices = await source("test");
+				return choices[0];
+			});
+			mockPullIntegration.mockResolvedValue({
+				integration: { id: 1, name: "Test Integration" },
+			});
+			mockCreateExistingIntegrationsFolder.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["pull"]);
+
+			expect(mockPullIntegration).toHaveBeenCalled();
+		});
+
+		it("should handle status with search filter for integration choices", async () => {
+			mockListAllIntegrations.mockResolvedValue([
+				{
+					id: 1,
+					name: "Test Integration",
+					status: "draft",
+					activity_type: "customActivity",
+				},
+				{
+					id: 2,
+					name: "Another Integration",
+					status: "published",
+					trigger_type: "CloudTrigger",
+				},
+			]);
+			mockSearch.mockImplementation(async ({ source }) => {
+				const choices = await source("test");
+				return choices[0].value;
+			});
+			mockGetIntegrationById.mockResolvedValue({
+				id: 1,
+				name: "Test Integration",
+				status: "draft",
+				active: true,
+				created_at: "2023-01-01T00:00:00Z",
+				updated_at: "2023-01-02T00:00:00Z",
+				created_by: "user1",
+				modified_by: "user2",
+				meta: { ai_description: "Test AI description" },
+			});
+
+			await IntegrationCommands.default.execute(["status"]);
+
+			expect(mockGetIntegrationById).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.any(String),
+				expect.any(String),
+				expect.any(String),
+				1
+			);
 		});
 	});
 });
