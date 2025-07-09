@@ -210,7 +210,20 @@ describe("Integration Commands", () => {
 			expect(mockValidateIntegrationSchemas).toHaveBeenCalled();
 		});
 
-		it("should execute publish command", async () => {
+		it("should execute submit command", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockSyncIntegration.mockResolvedValue(true);
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSendIntegrationForReview.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			expect(mockExists).toHaveBeenCalled();
+			expect(mockValidateIntegrationSchemas).toHaveBeenCalled();
+		});
+
+		it("should execute publish command with deprecation warning", async () => {
 			mockExists.mockReturnValue(true);
 			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
 			mockSyncIntegration.mockResolvedValue(true);
@@ -515,8 +528,39 @@ describe("Integration Commands", () => {
 		});
 	});
 
-	describe("handlePublish", () => {
-		it("should publish integration successfully", async () => {
+	describe("handleSubmit", () => {
+		it("should submit integration successfully", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockSendIntegrationForReview.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			expect(mockSendIntegrationForReview).toHaveBeenCalled();
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"✅ Integration submitted for review successfully"
+				)
+			);
+		});
+
+		it("should handle submit failure", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(false); // sync fails
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			expect(mockSyncIntegration).toHaveBeenCalled();
+			// The submit should not proceed if sync fails
+		});
+	});
+
+	describe("handlePublish (deprecated)", () => {
+		it("should show deprecation warning when using publish", async () => {
 			mockExists.mockReturnValue(true);
 			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
 			mockUpdateIntegration.mockResolvedValue(true);
@@ -525,24 +569,12 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.default.execute(["publish"]);
 
-			expect(mockSendIntegrationForReview).toHaveBeenCalled();
 			expect(consoleSpy).toHaveBeenCalledWith(
 				expect.stringContaining(
-					"✅ Integration sent to review successfully"
+					"WARNING: The 'publish' command is deprecated"
 				)
 			);
-		});
-
-		it("should handle publish failure", async () => {
-			mockExists.mockReturnValue(true);
-			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
-			mockUpdateIntegration.mockResolvedValue(true);
-			mockSyncIntegration.mockResolvedValue(false); // sync fails
-
-			await IntegrationCommands.default.execute(["publish"]);
-
-			expect(mockSyncIntegration).toHaveBeenCalled();
-			// The publish should not proceed if sync fails
+			expect(mockSendIntegrationForReview).toHaveBeenCalled();
 		});
 	});
 
@@ -814,7 +846,20 @@ describe("Integration Commands", () => {
 			);
 		});
 
-		it("should handle invalid trigger_type in publish", async () => {
+		it("should handle invalid trigger_type in submit", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue(
+				'{"name": "test", "id": 123, "trigger_type": "InvalidTrigger"}'
+			);
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Invalid trigger_type "InvalidTrigger"')
+			);
+		});
+
+		it("should handle invalid trigger_type in publish (deprecated)", async () => {
 			mockExists.mockReturnValue(true);
 			mockReadFile.mockReturnValue(
 				'{"name": "test", "id": 123, "trigger_type": "InvalidTrigger"}'
@@ -822,6 +867,11 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.default.execute(["publish"]);
 
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"WARNING: The 'publish' command is deprecated"
+				)
+			);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				expect.stringContaining('Invalid trigger_type "InvalidTrigger"')
 			);
@@ -836,11 +886,25 @@ describe("Integration Commands", () => {
 			expect(mockSyncIntegration).not.toHaveBeenCalled();
 		});
 
-		it("should handle no spec.json in publish", async () => {
+		it("should handle no spec.json in submit", async () => {
+			mockExists.mockReturnValue(false);
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			// Should exit early without error since no spec.json exists
+			expect(mockSyncIntegration).not.toHaveBeenCalled();
+		});
+
+		it("should handle no spec.json in publish (deprecated)", async () => {
 			mockExists.mockReturnValue(false);
 
 			await IntegrationCommands.default.execute(["publish"]);
 
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"WARNING: The 'publish' command is deprecated"
+				)
+			);
 			// Should exit early without error since no spec.json exists
 			expect(mockSyncIntegration).not.toHaveBeenCalled();
 		});
@@ -871,7 +935,20 @@ describe("Integration Commands", () => {
 			);
 		});
 
-		it("should handle publish sync failure", async () => {
+		it("should handle submit sync failure", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(false);
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Error submitting integration")
+			);
+		});
+
+		it("should handle publish sync failure (deprecated)", async () => {
 			mockExists.mockReturnValue(true);
 			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
 			mockUpdateIntegration.mockResolvedValue(true);
@@ -879,8 +956,13 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.default.execute(["publish"]);
 
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"WARNING: The 'publish' command is deprecated"
+				)
+			);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining("❌ Error publishing integration")
+				expect.stringContaining("❌ Error submitting integration")
 			);
 		});
 
@@ -1393,7 +1475,20 @@ describe("Integration Commands", () => {
 			expect(mockInput).toHaveBeenCalled();
 		});
 
-		it("should handle publish with missing sync data", async () => {
+		it("should handle submit with missing sync data", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(false);
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Error submitting integration")
+			);
+		});
+
+		it("should handle publish with missing sync data (deprecated)", async () => {
 			mockExists.mockReturnValue(true);
 			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
 			mockUpdateIntegration.mockResolvedValue(true);
@@ -1401,12 +1496,37 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.default.execute(["publish"]);
 
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"WARNING: The 'publish' command is deprecated"
+				)
+			);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining("❌ Error publishing integration")
+				expect.stringContaining("❌ Error submitting integration")
 			);
 		});
 
-		it("should handle publish with sync data containing message", async () => {
+		it("should handle submit with sync data containing message", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue({
+				message: "Custom sync error",
+			});
+			mockSendIntegrationForReview.mockResolvedValue(true);
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			// When sync returns an object with message, it's truthy so it goes to review
+			expect(mockSendIntegrationForReview).toHaveBeenCalled();
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"✅ Integration submitted for review successfully"
+				)
+			);
+		});
+
+		it("should handle publish with sync data containing message (deprecated)", async () => {
 			mockExists.mockReturnValue(true);
 			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
 			mockUpdateIntegration.mockResolvedValue(true);
@@ -1417,11 +1537,16 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.default.execute(["publish"]);
 
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"WARNING: The 'publish' command is deprecated"
+				)
+			);
 			// When sync returns an object with message, it's truthy so it goes to review
 			expect(mockSendIntegrationForReview).toHaveBeenCalled();
 			expect(consoleSpy).toHaveBeenCalledWith(
 				expect.stringContaining(
-					"✅ Integration sent to review successfully"
+					"✅ Integration submitted for review successfully"
 				)
 			);
 		});
@@ -1686,7 +1811,25 @@ describe("Integration Commands", () => {
 			);
 		});
 
-		it("should handle publish review failure", async () => {
+		it("should handle submit review failure", async () => {
+			mockExists.mockReturnValue(true);
+			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
+			mockUpdateIntegration.mockResolvedValue(true);
+			mockSyncIntegration.mockResolvedValue(true);
+			mockSendIntegrationForReview.mockResolvedValue(false);
+
+			await IntegrationCommands.default.execute(["submit"]);
+
+			expect(mockSendIntegrationForReview).toHaveBeenCalled();
+			// Should not show success message when review fails
+			expect(consoleSpy).not.toHaveBeenCalledWith(
+				expect.stringContaining(
+					"✅ Integration submitted for review successfully"
+				)
+			);
+		});
+
+		it("should handle publish review failure (deprecated)", async () => {
 			mockExists.mockReturnValue(true);
 			mockReadFile.mockReturnValue('{"name": "test", "id": 123}');
 			mockUpdateIntegration.mockResolvedValue(true);
@@ -1695,11 +1838,16 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.default.execute(["publish"]);
 
+			expect(consoleSpy).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"WARNING: The 'publish' command is deprecated"
+				)
+			);
 			expect(mockSendIntegrationForReview).toHaveBeenCalled();
 			// Should not show success message when review fails
 			expect(consoleSpy).not.toHaveBeenCalledWith(
 				expect.stringContaining(
-					"✅ Integration sent to review successfully"
+					"✅ Integration submitted for review successfully"
 				)
 			);
 		});

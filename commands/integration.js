@@ -34,8 +34,12 @@ const commands = {
 		description: "Edit an existing integration",
 		action: handleEdit,
 	},
+	submit: {
+		description: "Submit an integration for review",
+		action: handleSubmit,
+	},
 	publish: {
-		description: "Publish an integration",
+		description: "Publish an integration (deprecated, use submit)",
 		action: handlePublish,
 	},
 	sync: {
@@ -236,8 +240,8 @@ async function handleSync(args) {
 }
 
 // Publish an integration
-async function handlePublish(args) {
-	console.log(chalk.green("Publishing integration...\n"));
+async function handleSubmit(args) {
+	console.log(chalk.green("Submitting integration for review...\n"));
 	// Parse command line arguments
 	let currentDir = process.cwd();
 	const pathIndex = args.indexOf("--path");
@@ -347,16 +351,30 @@ async function handlePublish(args) {
 			if (review) {
 				console.log(
 					chalk.green(
-						"\n✅ Integration sent to review successfully!\n"
+						"\n✅ Integration submitted for review successfully!\n"
 					)
 				);
 			}
 		} else {
 			console.error(
-				chalk.red("\n❌ Error publishing integration:", data.message)
+				chalk.red("\n❌ Error submitting integration:", data.message)
 			);
 		}
 	}
+}
+
+async function handlePublish(args) {
+	console.log(
+		chalk.yellow(
+			"⚠️  WARNING: The 'publish' command is deprecated and will be removed in a future version."
+		)
+	);
+	console.log(
+		chalk.yellow("Please use 'boltic integration submit' instead.\n")
+	);
+
+	// Call the new submit function
+	await handleSubmit(args);
 }
 
 // Execute the integration command

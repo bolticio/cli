@@ -30,7 +30,8 @@ boltic [command] [subcommand] [options]
 - `boltic integration create` - Create new integration
 - `boltic integration edit` - Edit existing integration
 - `boltic integration sync` - Sync changes to draft
-- `boltic integration publish` - Submit for review
+- `boltic integration submit` - Submit for review
+- `boltic integration publish` - Submit for review (deprecated, use submit)
 - `boltic integration pull` - Pull latest changes
 - `boltic integration status` - Show integration details
 
@@ -75,7 +76,8 @@ boltic [command] [subcommand] [options]
   - Integration group selection
 - **Edit**: Modify existing integrations
 - **Sync**: Upload changes to draft version
-- **Publish**: Submit integration for review
+- **Submit**: Submit integration for review
+- **Publish**: Submit integration for review (deprecated, use submit)
 - **Pull**: Download latest changes from cloud
 - **Status**: View integration details and metadata
 

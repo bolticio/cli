@@ -66,26 +66,26 @@ boltic integration edit
 boltic integration sync
 ```
 
-### 🚀 Publish an Integration
+### 🚀 Submit an Integration
 
 ```bash
-boltic integration publish
+boltic integration submit
 ```
 
 ---
 
 ## 📌 Command Reference
 
-| Command                      | Description                                              |
-| ---------------------------- | -------------------------------------------------------- |
-| `boltic login`               | Authenticate with Boltic                                 |
-| `boltic integration create`  | Create a new integration                                 |
-| `boltic integration sync`    | Sync changes to your draft                               |
-| `boltic integration publish` | Submit integration for review                            |
-| `boltic integration pull`    | Pull the latest changes of an integration from the Cloud |
-| `boltic integration edit`    | Edit an existing integration                             |
-| `boltic help`                | Show CLI help                                            |
-| `boltic version`             | Display CLI version                                      |
+| Command                     | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `boltic login`              | Authenticate with Boltic                                 |
+| `boltic integration create` | Create a new integration                                 |
+| `boltic integration sync`   | Sync changes to your draft                               |
+| `boltic integration submit` | Submit integration for review                            |
+| `boltic integration pull`   | Pull the latest changes of an integration from the Cloud |
+| `boltic integration edit`   | Edit an existing integration                             |
+| `boltic help`               | Show CLI help                                            |
+| `boltic version`            | Display CLI version                                      |
 
 ---
 
@@ -102,7 +102,7 @@ boltic integration create
 boltic integration sync
 
 # Step 5: Submit for publishing and review
-boltic integration publish
+boltic integration submit
 
 # Step 6: Pull the latest changes of a integration. Please call this command inside a integration folder.
 boltic integration pull
