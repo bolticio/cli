@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Environment
 .env
@@ -31,4 +30,4 @@ build/
 .tmp/
 .temp/
 .claude/
-.github
+github
