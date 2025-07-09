@@ -609,15 +609,15 @@ async function handleCreate() {
 					create_catalogue
 				);
 
-				// Also share Documentation URL to the user: https://docs.boltic.io/docs/integration-builder/develop/boilerplate
 				const documentationUrl =
 					"https://docs.boltic.io/docs/integration-builder/develop/boilerplate";
+
 				console.log(
 					chalk.cyan(
-						"\n📄 Documentation URL: " +
-							chalk.underline.blue(documentationUrl)
+						`📄 For detailed instructions on next steps, refer to the official documentation:`
 					)
 				);
+				console.log(chalk.underline.blue(documentationUrl));
 			}
 		} catch (error) {
 			console.error(
