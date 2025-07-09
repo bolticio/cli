@@ -65,8 +65,16 @@ describe("Validation", () => {
 								name: "resource",
 								meta: {
 									options: [
-										{ value: "users" },
-										{ value: "posts" },
+										{
+											value: "users",
+											label: "Users",
+											description: "Manage users",
+										},
+										{
+											value: "posts",
+											label: "Posts",
+											description: "Manage posts",
+										},
 									],
 								},
 							},
@@ -80,8 +88,16 @@ describe("Validation", () => {
 								name: "operation",
 								meta: {
 									options: [
-										{ value: "users.list" },
-										{ value: "users.get" },
+										{
+											value: "users.list",
+											label: "List Users",
+											description: "List all users",
+										},
+										{
+											value: "users.get",
+											label: "Get User",
+											description: "Get a specific user",
+										},
 									],
 								},
 							},
@@ -102,7 +118,13 @@ describe("Validation", () => {
 							{
 								name: "operation",
 								meta: {
-									options: [{ value: "posts.create" }],
+									options: [
+										{
+											value: "posts.create",
+											label: "Create Post",
+											description: "Create a new post",
+										},
+									],
 								},
 							},
 						],
@@ -327,7 +349,13 @@ describe("Validation", () => {
 							{
 								name: "resource",
 								meta: {
-									options: [{ value: "users" }],
+									options: [
+										{
+											value: "users",
+											label: "Users",
+											description: "Manage users",
+										},
+									],
 								},
 							},
 						],
@@ -340,8 +368,16 @@ describe("Validation", () => {
 								name: "operation",
 								meta: {
 									options: [
-										{ value: "users.list" },
-										{ value: "users.get" },
+										{
+											value: "users.list",
+											label: "List Users",
+											description: "List all users",
+										},
+										{
+											value: "users.get",
+											label: "Get User",
+											description: "Get a specific user",
+										},
 									],
 								},
 							},
@@ -613,7 +649,13 @@ describe("Validation", () => {
 							{
 								name: "resource",
 								meta: {
-									options: [{ value: "users" }],
+									options: [
+										{
+											value: "users",
+											label: "Users",
+											description: "Manage users",
+										},
+									],
 								},
 							},
 						],
