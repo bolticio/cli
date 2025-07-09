@@ -49,6 +49,25 @@ describe("Schema Templates", () => {
 
 			expect(secretParam.meta.config.url).toContain("TESTSERVICE");
 		});
+
+		it("should handle create_catalogue=true", () => {
+			const baseSchema = schemas.base("testService", true);
+			const secretParam = baseSchema.parameters[0];
+
+			expect(secretParam.meta.displayType).toBe("hidden");
+			expect(secretParam.meta.value).toBe(
+				"__BOLTIC_INTEGRATION_TESTSERVICE"
+			);
+		});
+
+		it("should handle create_catalogue=false", () => {
+			const baseSchema = schemas.base("testService", false);
+			const secretParam = baseSchema.parameters[0];
+
+			expect(secretParam.meta.displayType).toBe("autocomplete");
+			expect(secretParam.meta.config).toBeDefined();
+			expect(secretParam.meta.config.url).toContain("TESTSERVICE");
+		});
 	});
 
 	describe("webhook schema function", () => {
