@@ -1,0 +1,59 @@
+{
+	"name": "@boltic/cli",
+	"version": "1.0.6-beta.6",
+	"description": "A powerful CLI tool for managing Boltic Workflow integrations",
+	"main": "index.js",
+	"bin": {
+		"boltic": "index.js"
+	},
+	"author": "Ahmed Sakri <ahmedsakri@gofynd.com>",
+	"homepage": "https://www.boltic.io",
+	"scripts": {
+		"start": "node index.js",
+		"dev": "nodemon index.js",
+		"test": "jest",
+		"prepare": "husky",
+		"lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+	},
+	"keywords": [
+		"cli",
+		"boltic",
+		"developer-tools",
+		"integration",
+		"workflow",
+		"automation",
+		"fynd"
+	],
+	"license": "ISC",
+	"type": "module",
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
+	},
+	"dependencies": {
+		"@inquirer/prompts": "^7.3.2",
+		"axios": "^1.8.2",
+		"chalk": "^5.3.0",
+		"keytar": "^7.9.0",
+		"open": "^10.1.0",
+		"uuid": "^11.1.0",
+		"lodash.isempty": "^4.4.0"
+	},
+	"devDependencies": {
+		"@babel/core": "^7.26.9",
+		"@babel/preset-env": "^7.26.9",
+		"@commitlint/cli": "^19.7.1",
+		"@commitlint/config-conventional": "^19.7.1",
+		"@jest/globals": "^29.7.0",
+		"axios-mock-adapter": "^2.1.0",
+		"babel-jest": "^29.7.0",
+		"eslint": "^9.21.0",
+		"eslint-config-prettier": "^10.0.2",
+		"eslint-plugin-prettier": "^5.2.3",
+		"husky": "^9.1.7",
+		"jest": "^29.7.0",
+		"lint-staged": "^15.4.3",
+		"nodemon": "^3.1.9",
+		"prettier": "^3.5.3"
+	}
+}
