@@ -2,6 +2,20 @@ import fs from "fs";
 import isEmpty from "lodash.isempty";
 import path from "path";
 
+const validateOptionObject = (options, fieldName, fileLabel, errors) => {
+	options.forEach((opt, index) => {
+		const missingKeys = ["label", "value", "description"].filter(
+			(key) => !(key in opt)
+		);
+
+		if (missingKeys.length > 0) {
+			errors.add(
+				`"${fieldName}" field in "${fileLabel}" has an option at index ${index} missing keys: ${missingKeys.join(", ")}.`
+			);
+		}
+	});
+};
+
 const readAndParseJson = (filePath, fileLabel, errors) => {
 	try {
 		const content = fs.readFileSync(filePath, "utf8");
@@ -15,8 +29,7 @@ const readAndParseJson = (filePath, fileLabel, errors) => {
 		return null;
 	}
 };
-
-const findResourceFieldsWithOptions = (schema) => {
+const findResourceFieldsWithOptions = (schema, fileLabel, errors) => {
 	const resourceFields = [];
 	if (Array.isArray(schema?.parameters)) {
 		schema.parameters.forEach((param) => {
@@ -24,6 +37,12 @@ const findResourceFieldsWithOptions = (schema) => {
 				param.name === "resource" &&
 				Array.isArray(param.meta?.options)
 			) {
+				validateOptionObject(
+					param.meta.options,
+					"resource",
+					fileLabel,
+					errors
+				);
 				resourceFields.push(
 					...param.meta.options.map((opt) => opt.value)
 				);
@@ -32,8 +51,7 @@ const findResourceFieldsWithOptions = (schema) => {
 	}
 	return resourceFields;
 };
-
-const findOperationFieldsWithOptions = (schema) => {
+const findOperationFieldsWithOptions = (schema, fileLabel, errors) => {
 	const operationFields = [];
 	if (Array.isArray(schema?.parameters)) {
 		schema.parameters.forEach((param) => {
@@ -41,6 +59,12 @@ const findOperationFieldsWithOptions = (schema) => {
 				param.name === "operation" &&
 				Array.isArray(param.meta?.options)
 			) {
+				validateOptionObject(
+					param.meta.options,
+					"operation",
+					fileLabel,
+					errors
+				);
 				operationFields.push(
 					...param.meta.options.map((opt) => opt.value)
 				);
@@ -49,7 +73,6 @@ const findOperationFieldsWithOptions = (schema) => {
 	}
 	return operationFields;
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // INDIVIDUAL VALIDATORS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -121,7 +144,11 @@ const validateResources = (resourcesDir, resourceFields, errors) => {
 		);
 		if (!schema) return;
 
-		const operationFields = findOperationFieldsWithOptions(schema);
+		const operationFields = findOperationFieldsWithOptions(
+			schema,
+			`${resourceFile}.json`,
+			errors
+		);
 
 		operationFields.forEach((operation) => {
 			const operationMethod = operation.split(".")[1];
@@ -154,23 +181,6 @@ const validateResources = (resourcesDir, resourceFields, errors) => {
 	});
 };
 
-// const validateParametersScema = (schema, errors) => {
-// 	if (!schema || !Array.isArray(schema.parameters)) {
-// 		errors.add(
-// 			`Schema is missing or parameters are not defined as an array.`
-// 		);
-// 		return;
-// 	}
-// 	schema.parameters.forEach((param) => {
-// 		const { meta } = param;
-// 		if (!param.name) {
-// 			errors.add(
-// 				`Parameter in schema is missing a name. Ensure all parameters have a "name" field.`
-// 			);
-// 		}
-// 	});
-// };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN FUNCTION
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,7 +205,7 @@ export const validateIntegrationSchemas = (currentDir) => {
 
 	const baseSchema = validateBaseSchema(paths.base, errors);
 	const resourceFields = baseSchema
-		? findResourceFieldsWithOptions(baseSchema)
+		? findResourceFieldsWithOptions(baseSchema, "base.json", errors)
 		: [];
 
 	validateResources(paths.resources, resourceFields, errors);
