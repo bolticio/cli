@@ -218,7 +218,13 @@ const validateComponentSchemas = (schemas, errors) => {
 			errors.add(`"${schema.name}" is missing a placeholder.`);
 		}
 
-		if (!schema.meta.description) {
+		// Only require description if the component schema defines it
+		if (
+			componentSchema &&
+			componentSchema.meta &&
+			"description" in componentSchema.meta &&
+			!schema.meta.description
+		) {
 			errors.add(`"${schema.name}" is missing a description.`);
 		}
 

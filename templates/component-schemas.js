@@ -7,6 +7,12 @@ const text = {
 		description: "Name will be used for account purposes",
 		value: "John Doe",
 		readOnly: true,
+		isDisable: true,
+		htmlProps: {
+			showInfoIcon: false,
+			rightLabel: "",
+			rightLabelAlignment: "center",
+		},
 		validation: {
 			required: true,
 			min: 3,
@@ -24,6 +30,7 @@ const text = {
 			maxDetail: {
 				errorMsg: "Value must be less than 10",
 			},
+			infoDetail: { infoMsg: "this is for information purpose" },
 		},
 		dependencies: {
 			conditions: [
@@ -46,6 +53,12 @@ const number = {
 		description: "Number input field",
 		value: 0,
 		readOnly: false,
+		isDisabled: false,
+		htmlProps: {
+			showInfoIcon: false,
+			rightLabel: "",
+			rightLabelAlignment: "center",
+		},
 		validation: {
 			required: false,
 			min: 0,
@@ -59,6 +72,7 @@ const number = {
 			maxDetail: {
 				errorMsg: "Value must be less than maximum",
 			},
+			infoDetail: { infoMsg: "this is for information purpose" },
 		},
 		dependencies: {
 			logic: "AND",
@@ -82,6 +96,7 @@ const select = {
 		description: "Select from available options",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		options: [
 			{
 				value: "value1",
@@ -97,9 +112,7 @@ const select = {
 			valueKey: "value",
 			body: {},
 		},
-		htmlProps: {
-			showAddNew: false,
-		},
+		displayProps: { loading: false },
 		validation: {
 			required: false,
 			requiredDetail: {
@@ -127,6 +140,7 @@ const checkbox = {
 		description: "Checkbox input",
 		value: false,
 		readOnly: false,
+		isDisabled: false,
 		validation: {
 			required: false,
 			requiredDetail: {
@@ -155,6 +169,7 @@ const autocomplete = {
 		description: "Autocomplete input field",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		options: [
 			{
 				label: "Option 1",
@@ -204,6 +219,7 @@ const email = {
 		description: "Email input field",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		validation: {
 			required: false,
 			pattern: "^[^@]+@[^@]+\\.[^@]+$",
@@ -236,6 +252,7 @@ const password = {
 		description: "Password input field",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		validation: {
 			required: false,
 			min: 8,
@@ -314,6 +331,7 @@ const textarea = {
 		description: "Multi-line text input",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		htmlProps: {
 			minRows: 3,
 			maxRows: 10,
@@ -344,6 +362,7 @@ const toggle = {
 		description: "Toggle switch",
 		value: false,
 		readOnly: false,
+		isDisabled: false,
 		validation: {
 			required: false,
 			disabled: false,
@@ -373,6 +392,7 @@ const file = {
 		description: "File upload field",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		htmlProps: {
 			multiple: false,
 			accept: "*/*",
@@ -407,6 +427,7 @@ const array = {
 		description: "Array of items",
 		value: [],
 		readOnly: false,
+		isDisabled: false,
 		children: [
 			{
 				name: "item",
@@ -444,6 +465,7 @@ const object = {
 		description: "Object with properties",
 		value: {},
 		readOnly: false,
+		isDisabled: false,
 		children: [
 			{
 				name: "property",
@@ -502,7 +524,7 @@ const slider = {
 		displayType: "slider",
 		description: "Slider input",
 		value: 0,
-		readOnly: false,
+		isDisabled: false,
 		min: 0,
 		max: 100,
 		step: 1,
@@ -529,6 +551,7 @@ const url = {
 		description: "URL input field",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		validation: {
 			required: false,
 			pattern: "^https?://.*",
@@ -571,11 +594,13 @@ const date = {
 		description: "Date picker field",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		htmlProps: {
-			minDate: "",
-			maxDate: "",
-			dateFormat: "YYYY-MM-DD",
-			showTime: false,
+			format: "YYYY-MM-DD",
+			disabled: false,
+			readOnly: false,
+			views: undefined,
+			timeSteps: { hours: 1, minutes: 5, seconds: 5 },
 		},
 		validation: {
 			required: false,
@@ -633,18 +658,10 @@ const multiselect = {
 			valueKey: "value",
 			body: {},
 		},
-		htmlProps: {
-			limitTags: 3,
-			showSelectAll: true,
-		},
 		validation: {
 			required: false,
-			max: 10,
 			requiredDetail: {
 				errorMsg: "Selection is required",
-			},
-			maxDetail: {
-				errorMsg: "Too many selections",
 			},
 		},
 		dependencies: {
@@ -728,14 +745,15 @@ const switchControl = {
 	},
 };
 
-const multiplefield = {
+const multitext = {
 	name: "name",
 	meta: {
 		displayName: "Name",
-		displayType: "multiplefield",
+		displayType: "multitext",
 		description: "Multiple field container",
 		value: [],
 		readOnly: false,
+		isDisabled: false,
 		children: [
 			{
 				name: "field1",
@@ -753,6 +771,8 @@ const multiplefield = {
 			allowRemove: true,
 			minItems: 1,
 			maxItems: 10,
+			allowDynamic: true,
+			className: "custom class",
 		},
 		validation: {
 			required: false,
@@ -790,6 +810,7 @@ const phone = {
 		description: "Phone number input",
 		value: "",
 		readOnly: false,
+		isDisabled: false,
 		htmlProps: {
 			defaultCountry: "US",
 			excludedCountries: [],
@@ -819,6 +840,7 @@ const keyvalue = {
 		description: "Key-value pairs",
 		value: {},
 		readOnly: false,
+		isDisabled: false,
 		children: [
 			{
 				name: "key",
@@ -866,14 +888,12 @@ const button = {
 		description: "Action button",
 		text: "Click me",
 		value: "",
-		disabled: false,
+		isDisabled: false,
+		readOnly: false,
 		htmlProps: {
 			variant: "contained",
 			size: "medium",
-		},
-		action: {
-			type: "submit",
-			handler: "",
+			// ...any other prop will be added to button component
 		},
 	},
 };
@@ -891,8 +911,8 @@ export {
 	file,
 	hidden,
 	keyvalue,
-	multiplefield,
 	multiselect,
+	multitext,
 	number,
 	object,
 	password,
