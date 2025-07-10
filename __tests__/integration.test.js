@@ -774,7 +774,41 @@ describe("Integration Commands", () => {
 			});
 		});
 
-		it("should publish integration successfully", async () => {
+		it("should submit integration successfully", async () => {
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(true);
+			jest.mocked(
+				integrationApi.sendIntegrationForReview
+			).mockResolvedValue(true);
+
+			await IntegrationCommands.execute(["submit"]);
+
+			expect(integrationApi.sendIntegrationForReview).toHaveBeenCalled();
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Integration submitted for review successfully!"
+				)
+			);
+		});
+
+		it("should handle submit failure", async () => {
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(
+				false
+			);
+
+			await IntegrationCommands.execute(["submit"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Error submitting integration")
+			);
+		});
+
+		it("should handle publish command with deprecation warning", async () => {
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -785,27 +819,12 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.execute(["publish"]);
 
-			expect(integrationApi.sendIntegrationForReview).toHaveBeenCalled();
 			expect(mockConsoleLog).toHaveBeenCalledWith(
 				expect.stringContaining(
-					"Integration sent to review successfully!"
+					"WARNING: The 'publish' command is deprecated"
 				)
 			);
-		});
-
-		it("should handle publish failure", async () => {
-			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
-				true
-			);
-			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(
-				false
-			);
-
-			await IntegrationCommands.execute(["publish"]);
-
-			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining("Error publishing integration")
-			);
+			expect(integrationApi.sendIntegrationForReview).toHaveBeenCalled();
 		});
 	});
 
@@ -1479,7 +1498,22 @@ describe("Integration Commands", () => {
 			);
 		});
 
-		it("should handle publish sync failure", async () => {
+		it("should handle submit sync failure", async () => {
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(
+				false
+			);
+
+			await IntegrationCommands.execute(["submit"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Error submitting integration")
+			);
+		});
+
+		it("should handle publish sync failure (deprecated)", async () => {
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -1489,8 +1523,13 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.execute(["publish"]);
 
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"WARNING: The 'publish' command is deprecated"
+				)
+			);
 			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining("Error publishing integration")
+				expect.stringContaining("Error submitting integration")
 			);
 		});
 	});
