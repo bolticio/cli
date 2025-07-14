@@ -52,8 +52,14 @@ const findResourceFieldsWithOptions = (schema, fileLabel, errors) => {
 	}
 	return resourceFields;
 };
-const findOperationFieldsWithOptions = (schema, fileLabel, errors) => {
+const findOperationFieldsWithOptions = (
+	schema,
+	fileLabel,
+	errors,
+	expectedResourceName
+) => {
 	const operationFields = [];
+
 	if (Array.isArray(schema?.parameters)) {
 		schema.parameters.forEach((param) => {
 			if (
@@ -66,12 +72,28 @@ const findOperationFieldsWithOptions = (schema, fileLabel, errors) => {
 					fileLabel,
 					errors
 				);
-				operationFields.push(
-					...param.meta.options.map((opt) => opt.value)
-				);
+				param.meta.options.forEach((opt, index) => {
+					if (typeof opt.value === "string") {
+						const parts = opt.value.split(".");
+						if (parts.length < 2) {
+							errors.add(
+								`"operation" field in "${fileLabel}" has an invalid option at index ${index} with value "${opt.value}". Expected format "resource.operation".`
+							);
+						} else {
+							const resource = parts[0];
+							if (resource !== expectedResourceName) {
+								errors.add(
+									`"operation" field in "${fileLabel}" has an inconsistent resource prefix at index ${index}. Found "${resource}" but expected "${expectedResourceName}".`
+								);
+							}
+							operationFields.push(opt.value);
+						}
+					}
+				});
 			}
 		});
 	}
+
 	return operationFields;
 };
 
@@ -228,6 +250,23 @@ const validateComponentSchemas = (schemas, errors) => {
 			errors.add(`"${schema.name}" is missing a description.`);
 		}
 
+		// 🚨 Validate for duplicate options with same label and value
+		if (Array.isArray(schema.meta.options)) {
+			const seen = new Set();
+			schema.meta.options.forEach((option, index) => {
+				if (option && typeof option === "object") {
+					const key = `${option.label}::${option.value}`;
+					if (seen.has(key)) {
+						errors.add(
+							`"${schema.name}" contains duplicate option at index ${index} with label "${option.label}" and value "${option.value}".`
+						);
+					} else {
+						seen.add(key);
+					}
+				}
+			});
+		}
+
 		// Validate against the specific component type schema
 		validateComponentByType(schema, schema.meta.displayType, errors);
 	});
@@ -366,7 +405,8 @@ const validateResources = (resourcesDir, resourceFields, errors) => {
 		const operationFields = findOperationFieldsWithOptions(
 			schema,
 			`${resourceFile}.json`,
-			errors
+			errors,
+			resourceFile
 		);
 
 		operationFields.forEach((operation) => {
