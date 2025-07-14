@@ -51,21 +51,6 @@ const base = (name, create_catalogue) => {
 				name: "secret",
 				meta: {
 					displayName: "Service Account",
-					displayType: "hidden",
-					placeholder: "Select Service Account",
-					description:
-						"Your service account credentials are encrypted & can be removed at any time.",
-					options: [],
-					value: `__BOLTIC_INTEGRATION_${name.toUpperCase()}`,
-					validation: {
-						required: true,
-					},
-				},
-			}
-		: {
-				name: "secret",
-				meta: {
-					displayName: "Service Account",
 					displayType: "autocomplete",
 					placeholder: "Select Service Account",
 					description:
@@ -82,6 +67,21 @@ const base = (name, create_catalogue) => {
 						showAddNew: true,
 					},
 					value: "",
+					validation: {
+						required: true,
+					},
+				},
+			}
+		: {
+				name: "secret",
+				meta: {
+					displayName: "Service Account",
+					displayType: "hidden",
+					placeholder: "Select Service Account",
+					description:
+						"Your service account credentials are encrypted & can be removed at any time.",
+					options: [],
+					value: `__BOLTIC_INTEGRATION_${name.toUpperCase()}`,
 					validation: {
 						required: true,
 					},
