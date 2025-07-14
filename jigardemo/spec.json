@@ -1,0 +1,17 @@
+{
+    "id": "26298c18-23b6-462b-8de0-6617c6c4a47a",
+    "name": "JigarDemo",
+    "description": {
+        "trigger": "",
+        "integration": "Sample Description"
+    },
+    "icon": "https://cdn.pixelbin.io/v2/fyndcloud/original/Temporal/Uploads/bolt/undefined/images/gitlab_1749538242829.svg",
+    "activity_type": "customActivity",
+    "trigger_type": null,
+    "meta": {
+        "ai_description": {
+            "trigger": "",
+            "integration": "Sample Description"
+        }
+    }
+}
