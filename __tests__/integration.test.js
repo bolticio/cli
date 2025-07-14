@@ -1532,5 +1532,73 @@ describe("Integration Commands", () => {
 				expect.stringContaining("Error submitting integration")
 			);
 		});
+
+		it("should handle sync with invalid trigger_type", async () => {
+			fs.readFileSync = jest.fn().mockReturnValue(
+				JSON.stringify({
+					id: "test-id",
+					name: "TestIntegration",
+					trigger_type: "InvalidTrigger",
+				})
+			);
+
+			await IntegrationCommands.execute(["sync"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Error: Invalid trigger_type "InvalidTrigger"'
+				)
+			);
+		});
+
+		it("should handle submit with invalid trigger_type", async () => {
+			fs.readFileSync = jest.fn().mockReturnValue(
+				JSON.stringify({
+					id: "test-id",
+					name: "TestIntegration",
+					trigger_type: "InvalidTrigger",
+				})
+			);
+
+			await IntegrationCommands.execute(["submit"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					'Error: Invalid trigger_type "InvalidTrigger"'
+				)
+			);
+		});
+
+		it("should handle submit with invalid path", async () => {
+			fs.existsSync = jest.fn().mockReturnValue(false);
+
+			await IntegrationCommands.execute([
+				"submit",
+				"--path",
+				"/invalid/path",
+			]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Error: The specified path does not exist: /invalid/path"
+				)
+			);
+		});
+
+		it("should handle pull with invalid path", async () => {
+			fs.existsSync = jest.fn().mockReturnValue(false);
+
+			await IntegrationCommands.execute([
+				"pull",
+				"--path",
+				"/invalid/path",
+			]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Error: The specified path does not exist: /invalid/path"
+				)
+			);
+		});
 	});
 });

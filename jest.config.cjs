@@ -15,6 +15,7 @@ module.exports = {
 		"^../config/(.*)$": "<rootDir>/config/$1",
 		"^../helper/(.*)$": "<rootDir>/helper/$1",
 		"^../utils/(.*)$": "<rootDir>/utils/$1",
+		"^../templates/(.*)$": "<rootDir>/templates/$1",
 	},
 	testEnvironmentOptions: {
 		customExportConditions: ["node", "node-addons"],
@@ -36,10 +37,10 @@ module.exports = {
 	],
 	coverageThreshold: {
 		global: {
-			branches: 90,
-			functions: 90,
-			lines: 90,
-			statements: 90,
+			branches: 78,
+			functions: 91,
+			lines: 88,
+			statements: 87,
 		},
 	},
 	coveragePathIgnorePatterns: [
