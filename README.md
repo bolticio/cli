@@ -97,25 +97,6 @@ npm install -g @boltic/cli
 boltic --version
 ```
 
-### Development Installation
-
-For contributors and developers:
-
-```bash
-# Clone the repository
-git clone https://github.com/bolticio/cli.git
-cd cli
-
-# Install dependencies
-npm install
-
-# Link for development
-npm link
-
-# Run tests
-npm test
-```
-
 ---
 
 ## 🔐 Authentication
@@ -355,65 +336,224 @@ boltic integration submit
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+### Complete Troubleshooting Guide
 
-#### Authentication Problems
+When encountering issues with Boltic CLI, follow this comprehensive troubleshooting guide:
+
+#### 1. Authentication Issues
+
+**Problem**: Cannot authenticate, login fails, or session expires
+
+**Solutions**:
 
 ```bash
-# Clear stored credentials
+# Clear stored credentials and re-authenticate
 boltic logout
-
-# Re-authenticate
 boltic login
 
-# Check connection
+# Check network connectivity
 ping console.fynd.com
+
+# If browser doesn't open automatically, copy the manual URL
+boltic login  # Manual URL will be displayed
+
+# For authentication timeout (5-minute limit)
+boltic login  # Retry the login process
 ```
 
-#### Sync Issues
+**Browser-specific issues**:
+
+- Manual login URL will be displayed if browser doesn't open
+- Copy and paste the URL into your browser
+- Ensure you're using a supported browser (Chrome, Firefox, Safari, Edge)
+
+#### 2. Integration Management Issues
+
+**Problem**: Cannot create, edit, sync, or submit integrations
+
+**Solutions**:
 
 ```bash
-# Check status
+# Check integration status
 boltic integration status
 
-#  Sync Changes
+# Force sync all changes
 boltic integration sync
 
+# Pull latest changes from Boltic Cloud
+boltic integration pull
+
+# Re-authenticate if needed
+boltic logout && boltic login
+
+# Check if you're in the correct directory
+ls -la  # Should show integration files (spec.json, etc.)
 ```
 
-#### Network Issues
+#### 3. Network and Connectivity Issues
+
+**Problem**: Connection errors, timeouts, or API failures
+
+**Solutions**:
 
 ```bash
-# Test connectivity
+# Test basic connectivity
 ping console.fynd.com
 
 # Check API status
 boltic integration status
 
-# Enable verbose logging for debugging
+# Enable verbose logging for detailed error information
 boltic --verbose integration sync
-```
-
-### Debug Mode
-
-```bash
-# Enable verbose logging
-boltic --verbose integration sync
-
-# Run with verbose output for any command
 boltic --verbose integration create
 boltic --verbose login
+
+# Check your internet connection and firewall settings
 ```
 
-### Getting Help
+#### 4. File and Directory Issues
+
+**Problem**: Missing files, permission errors, or corrupted project structure
+
+**Solutions**:
 
 ```bash
-# Comprehensive help
+# Verify project structure
+ls -la  # Should show: schemas/, Authentication.mdx, Documentation.mdx, spec.json
+
+# Check file permissions
+ls -la schemas/
+
+# Re-create integration if structure is corrupted
+boltic integration create  # Create new integration
+# Then manually copy your customizations
+```
+
+#### 5. Performance and Sync Issues
+
+**Problem**: Slow performance, hanging operations, or sync failures
+
+**Solutions**:
+
+```bash
+# Check integration status first
+boltic integration status
+
+# Force sync with verbose output
+boltic --verbose integration sync
+
+# Clear cache and re-authenticate
+boltic logout
+boltic login
+
+# Check system resources
+# Ensure sufficient disk space and memory
+```
+
+#### 6. Debug Mode and Logging
+
+**Enable detailed logging for any command**:
+
+```bash
+# General verbose mode
+boltic --verbose <command>
+
+# Specific examples
+boltic --verbose integration create
+boltic --verbose integration sync
+boltic --verbose login
+boltic --verbose integration submit
+```
+
+#### 7. Getting Help and Support
+
+**Built-in help system**:
+
+```bash
+# General help
 boltic help
 
 # Command-specific help
 boltic integration help
+boltic login help
+
+# Check CLI version
+boltic --version
 ```
+
+**External resources**:
+
+- 📚 [Boltic Documentation](https://docs.boltic.io) - Complete guides and API reference
+- 🐛 [Issue Tracker](https://github.com/bolticio/cli/issues) - Report bugs and request features
+- 💬 [Discord Community](https://discord.gg/boltic) - Community support and discussions
+- 📧 [Support](https://support.boltic.io) - Official support channels
+
+#### 8. Advanced Troubleshooting
+
+**Keychain/Credential issues**:
+
+```bash
+# Manual credential cleanup (if logout fails)
+# macOS: Check Keychain Access for "boltic-cli" entries
+# Windows: Check Credential Manager for "boltic-cli" entries
+# Linux: Check Secret Service for "boltic-cli" entries
+
+# Force logout and clean authentication
+boltic logout
+boltic login
+```
+
+**Environment-specific issues**:
+
+```bash
+# Check Node.js version (requires 18.0.0+)
+node --version
+
+# Check npm version (requires 8.0.0+)
+npm --version
+
+# Update CLI to latest version
+npm install -g @boltic/cli@latest
+
+# Verify installation
+boltic --version
+```
+
+**Development mode troubleshooting**:
+
+```bash
+# For contributors using development installation
+npm install  # Update dependencies
+npm link     # Re-link CLI
+npm test     # Run test suite
+```
+
+#### 9. Emergency Recovery
+
+**If all else fails**:
+
+```bash
+# Complete reset
+boltic logout
+npm uninstall -g @boltic/cli
+npm install -g @boltic/cli
+boltic login
+
+# Backup and restore integration
+# Copy your integration files to a backup location
+# Re-create integration and restore customizations
+```
+
+**Still need help?**
+
+1. Check the [FAQ](https://docs.boltic.io/faq)
+2. Search [existing issues](https://github.com/bolticio/cli/issues)
+3. Create a new issue with:
+    - CLI version (`boltic --version`)
+    - Operating system
+    - Node.js version
+    - Complete error message
+    - Steps to reproduce
 
 ---
 
@@ -448,6 +588,6 @@ This project is licensed under the **ISC License** - see the [LICENSE](LICENSE) 
 
 **Made with ❤️ by the Boltic Team**
 
-[Website](https://boltic.io) • [Documentation](https://docs.boltic.io) • [Support](https://support.boltic.io) • [Discord](https://discord.gg/boltic)
+[Website](https://boltic.io) • [Documentation](https://docs.boltic.io) •
 
 </div>
