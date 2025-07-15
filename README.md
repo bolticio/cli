@@ -378,7 +378,7 @@ ping console.fynd.com
 # Check status
 boltic integration status
 
-# Force sync
+#  Sync Changes
 boltic integration sync
 
 ```
@@ -424,21 +424,11 @@ boltic integration help
 ### Official Resources
 
 - 📚 **[Boltic Documentation](https://docs.boltic.io)** - Complete API reference and guides
-- 🎥 **[Video Tutorials](https://boltic.io/tutorials)** - Step-by-step video guides
-- 💡 **[Examples Repository](https://github.com/bolticio/examples)** - Real-world integration examples
-- 🚀 **[Quick Start Guide](https://docs.boltic.io/quickstart)** - Get started in 5 minutes
 
 ### Community Resources
 
 - 🐛 **[Issue Tracker](https://github.com/bolticio/cli/issues)** - Report bugs and request features
 - 📝 **[Blog](https://boltic.io/blog)** - Latest updates and best practices
-
-### CLI Documentation
-
-```bash
-# Open documentation in browser
-boltic docs
-```
 
 ---
 
