@@ -198,8 +198,6 @@ boltic login
 # Check network connectivity
 ping console.fynd.com
 
-# Try different environment
-boltic env set fcz0
 boltic login
 ```
 
@@ -429,46 +427,6 @@ boltic integration help
 
 - 🐛 **[Issue Tracker](https://github.com/bolticio/cli/issues)** - Report bugs and request features
 - 📝 **[Blog](https://boltic.io/blog)** - Latest updates and best practices
-
----
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Here's how you can help:
-
-### Development Setup
-
-```bash
-# Fork and clone
-git clone https://github.com/your-username/cli.git
-cd cli
-
-# Install dependencies
-npm install
-
-# Link for development
-npm link
-
-# Run tests
-npm test
-```
-
-### Contribution Guidelines
-
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes** with proper tests
-4. **Run the test suite**: `npm test`
-5. **Commit your changes**: `git commit -m 'Add amazing feature'`
-6. **Push to the branch**: `git push origin feature/amazing-feature`
-7. **Open a Pull Request**
-
-### Code Standards
-
-- Follow **ESLint** configuration
-- Write **comprehensive tests** for new features
-- Update **documentation** for API changes
-- Follow **conventional commits** for commit messages
 
 ---
 
