@@ -178,6 +178,13 @@ boltic integration list  # Will prompt login if not authenticated
 
 #### Common Issues
 
+**Browser doesn't open automatically:**
+
+```bash
+# Manual login URL will be displayed
+# Copy and paste the URL into your browser
+```
+
 **Authentication timeout:**
 
 ```bash
