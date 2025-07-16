@@ -51,21 +51,6 @@ const base = (name, create_catalogue) => {
 				name: "secret",
 				meta: {
 					displayName: "Service Account",
-					displayType: "hidden",
-					placeholder: "Select Service Account",
-					description:
-						"Your service account credentials are encrypted & can be removed at any time.",
-					options: [],
-					value: `__BOLTIC_INTEGRATION_${name.toUpperCase()}`,
-					validation: {
-						required: true,
-					},
-				},
-			}
-		: {
-				name: "secret",
-				meta: {
-					displayName: "Service Account",
 					displayType: "autocomplete",
 					placeholder: "Select Service Account",
 					description:
@@ -86,6 +71,21 @@ const base = (name, create_catalogue) => {
 						required: true,
 					},
 				},
+			}
+		: {
+				name: "secret",
+				meta: {
+					displayName: "Service Account",
+					displayType: "hidden",
+					placeholder: "Select Service Account",
+					description:
+						"Your service account credentials are encrypted & can be removed at any time.",
+					options: [],
+					value: `__BOLTIC_INTEGRATION_${name.toUpperCase()}`,
+					validation: {
+						required: true,
+					},
+				},
 			};
 
 	return {
@@ -98,7 +98,13 @@ const base = (name, create_catalogue) => {
 					displayType: "select",
 					placeholder: "Select a resource",
 					description: "Select the resource you want to work with.",
-					options: [{ label: "Resource 1", value: "resource1" }],
+					options: [
+						{
+							label: "Resource 1",
+							value: "resource1",
+							description: "Description for Resource 1",
+						},
+					],
 					value: "",
 					validation: {
 						required: true,
@@ -154,6 +160,8 @@ const webhook = (name) => {
 						{
 							label: "Webhook",
 							value: "webhook",
+							description:
+								"Receive notifications from the service.",
 						},
 					],
 					value: "",
@@ -181,6 +189,8 @@ const webhook = (name) => {
 						{
 							label: "Data Submission",
 							value: "webhook.data_submission",
+							description:
+								"Receive notifications when data is submitted.",
 						},
 					],
 					value: "",
@@ -395,10 +405,12 @@ const resource1 = {
 					{
 						label: "Create Account",
 						value: "resource1.create",
+						description: "Create a new account.",
 					},
 					{
 						label: "Delete Account",
 						value: "resource1.delete",
+						description: "Delete an existing account.",
 					},
 				],
 				validation: {

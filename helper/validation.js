@@ -1,6 +1,21 @@
 import fs from "fs";
 import isEmpty from "lodash.isempty";
 import path from "path";
+import * as componentSchemas from "../templates/component-schemas.js";
+
+const validateOptionObject = (options, fieldName, fileLabel, errors) => {
+	options.forEach((opt, index) => {
+		const missingKeys = ["label", "value", "description"].filter(
+			(key) => !(key in opt)
+		);
+
+		if (missingKeys.length > 0) {
+			errors.add(
+				`"${fieldName}" field in "${fileLabel}" has an option at index ${index} missing keys: ${missingKeys.join(", ")}.`
+			);
+		}
+	});
+};
 
 const readAndParseJson = (filePath, fileLabel, errors) => {
 	try {
@@ -15,8 +30,7 @@ const readAndParseJson = (filePath, fileLabel, errors) => {
 		return null;
 	}
 };
-
-const findResourceFieldsWithOptions = (schema) => {
+const findResourceFieldsWithOptions = (schema, fileLabel, errors) => {
 	const resourceFields = [];
 	if (Array.isArray(schema?.parameters)) {
 		schema.parameters.forEach((param) => {
@@ -24,6 +38,12 @@ const findResourceFieldsWithOptions = (schema) => {
 				param.name === "resource" &&
 				Array.isArray(param.meta?.options)
 			) {
+				validateOptionObject(
+					param.meta.options,
+					"resource",
+					fileLabel,
+					errors
+				);
 				resourceFields.push(
 					...param.meta.options.map((opt) => opt.value)
 				);
@@ -32,22 +52,224 @@ const findResourceFieldsWithOptions = (schema) => {
 	}
 	return resourceFields;
 };
-
-const findOperationFieldsWithOptions = (schema) => {
+const findOperationFieldsWithOptions = (
+	schema,
+	fileLabel,
+	errors,
+	expectedResourceName
+) => {
 	const operationFields = [];
+
 	if (Array.isArray(schema?.parameters)) {
 		schema.parameters.forEach((param) => {
 			if (
 				param.name === "operation" &&
 				Array.isArray(param.meta?.options)
 			) {
-				operationFields.push(
-					...param.meta.options.map((opt) => opt.value)
+				validateOptionObject(
+					param.meta.options,
+					"operation",
+					fileLabel,
+					errors
 				);
+				param.meta.options.forEach((opt, index) => {
+					if (typeof opt.value === "string") {
+						const parts = opt.value.split(".");
+						if (parts.length < 2) {
+							errors.add(
+								`"operation" field in "${fileLabel}" has an invalid option at index ${index} with value "${opt.value}". Expected format "resource.operation".`
+							);
+						} else {
+							const resource = parts[0];
+							if (resource !== expectedResourceName) {
+								errors.add(
+									`"operation" field in "${fileLabel}" has an inconsistent resource prefix at index ${index}. Found "${resource}" but expected "${expectedResourceName}".`
+								);
+							}
+							operationFields.push(opt.value);
+						}
+					}
+				});
 			}
 		});
 	}
+
 	return operationFields;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VALIDATE COMPONENT SCHEMAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Extract all possible keys from a component schema structure recursively
+ * @param {Object} obj - The object to extract keys from
+ * @param {string} prefix - Current key prefix for nested objects
+ * @returns {Set<string>} Set of all allowed keys with dot notation for nested paths
+ */
+const extractAllowedKeys = (obj, prefix = "") => {
+	const allowedKeys = new Set();
+
+	Object.keys(obj).forEach((key) => {
+		const fullKey = prefix ? `${prefix}.${key}` : key;
+		allowedKeys.add(fullKey);
+
+		if (
+			typeof obj[key] === "object" &&
+			obj[key] !== null &&
+			!Array.isArray(obj[key])
+		) {
+			const nestedKeys = extractAllowedKeys(obj[key], fullKey);
+			nestedKeys.forEach((nestedKey) => allowedKeys.add(nestedKey));
+		}
+	});
+
+	return allowedKeys;
+};
+
+/**
+ * Validate that a schema object doesn't contain any extra keys
+ * @param {Object} schemaObj - The schema object to validate
+ * @param {Set<string>} allowedKeys - Set of allowed keys
+ * @param {string} schemaName - Name of the schema for error messages
+ * @param {string} displayType - The display type for error messages
+ * @param {Set} errors - Error collection
+ * @param {string} prefix - Current key prefix for nested objects
+ */
+const validateSchemaKeys = (
+	schemaObj,
+	allowedKeys,
+	schemaName,
+	displayType,
+	errors,
+	prefix = ""
+) => {
+	Object.keys(schemaObj).forEach((key) => {
+		const fullKey = prefix ? `${prefix}.${key}` : key;
+
+		if (!allowedKeys.has(fullKey)) {
+			errors.add(
+				`"${schemaName}" has an invalid key "${fullKey}" for displayType "${displayType}".`
+			);
+		}
+
+		if (
+			typeof schemaObj[key] === "object" &&
+			schemaObj[key] !== null &&
+			!Array.isArray(schemaObj[key])
+		) {
+			validateSchemaKeys(
+				schemaObj[key],
+				allowedKeys,
+				schemaName,
+				displayType,
+				errors,
+				fullKey
+			);
+		}
+	});
+};
+
+/**
+ * Validate a single component schema against its component type definition
+ * @param {Object} schema - The schema to validate
+ * @param {string} displayType - The display type to validate against
+ * @param {Set} errors - Error collection
+ */
+const validateComponentByType = (schema, displayType, errors) => {
+	// Get the component schema definition for this display type
+	const componentSchema = componentSchemas[displayType];
+
+	if (!componentSchema) {
+		errors.add(
+			`"${schema.name}" has an unsupported displayType "${displayType}".`
+		);
+		return;
+	}
+
+	if (!componentSchema.meta) {
+		errors.add(
+			`Component schema for "${displayType}" is missing meta definition.`
+		);
+		return;
+	}
+
+	// Extract allowed keys from the component schema
+	const allowedKeys = extractAllowedKeys(componentSchema.meta);
+
+	// Validate the schema meta object (excluding displayType which we already handled)
+	const { displayType: currentDisplayType, ...restMeta } = schema.meta;
+	validateSchemaKeys(
+		restMeta,
+		allowedKeys,
+		schema.name,
+		currentDisplayType,
+		errors
+	);
+};
+
+const validateComponentSchemas = (schemas, errors) => {
+	schemas.forEach((schema) => {
+		// Basic required field validation
+		if (!schema.name) {
+			errors.add(`Schema is missing a name.`);
+			return; // Can't continue without a name
+		}
+		if (!schema.meta) {
+			errors.add(`"${schema.name}" is missing a meta object.`);
+			return; // Can't continue without meta
+		}
+		if (!schema.meta.displayType) {
+			errors.add(`"${schema.name}" is missing a displayType.`);
+			return; // Can't continue without displayType
+		}
+
+		// Optional field validation (these are warnings, not blocking)
+		if (!schema.meta.displayName) {
+			errors.add(`"${schema.name}" is missing a displayName.`);
+		}
+
+		// Only require placeholder if the component schema defines it
+		const componentSchema = componentSchemas[schema.meta.displayType];
+		if (
+			componentSchema &&
+			componentSchema.meta &&
+			"placeholder" in componentSchema.meta &&
+			!schema.meta.placeholder
+		) {
+			errors.add(`"${schema.name}" is missing a placeholder.`);
+		}
+
+		// Only require description if the component schema defines it
+		if (
+			componentSchema &&
+			componentSchema.meta &&
+			"description" in componentSchema.meta &&
+			!schema.meta.description
+		) {
+			errors.add(`"${schema.name}" is missing a description.`);
+		}
+
+		// 🚨 Validate for duplicate options with same label and value
+		if (Array.isArray(schema.meta.options)) {
+			const seen = new Set();
+			schema.meta.options.forEach((option, index) => {
+				if (option && typeof option === "object") {
+					const key = `${option.label}::${option.value}`;
+					if (seen.has(key)) {
+						errors.add(
+							`"${schema.name}" contains duplicate option at index ${index} with label "${option.label}" and value "${option.value}".`
+						);
+					} else {
+						seen.add(key);
+					}
+				}
+			});
+		}
+
+		// Validate against the specific component type schema
+		validateComponentByType(schema, schema.meta.displayType, errors);
+	});
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,6 +305,18 @@ const validateWebhook = (webhookPath, spec, errors) => {
 			`"webhook.json" exists but trigger_type is not defined in spec.json.`
 		);
 	}
+
+	// Validate webhook schema parameters if webhook exists
+	if (hasWebhook) {
+		const webhookSchema = readAndParseJson(
+			webhookPath,
+			"webhook.json",
+			errors
+		);
+		if (webhookSchema && Array.isArray(webhookSchema.parameters)) {
+			validateComponentSchemas(webhookSchema.parameters, errors);
+		}
+	}
 };
 
 const validateBaseSchema = (baseSchemaPath, errors) => {
@@ -90,7 +324,49 @@ const validateBaseSchema = (baseSchemaPath, errors) => {
 		errors.add(`"base.json" not found in the "schemas" directory.`);
 		return null;
 	}
-	return readAndParseJson(baseSchemaPath, "base.json", errors);
+
+	const baseSchema = readAndParseJson(baseSchemaPath, "base.json", errors);
+
+	// Validate base schema parameters
+	if (baseSchema && Array.isArray(baseSchema.parameters)) {
+		validateComponentSchemas(baseSchema.parameters, errors);
+	}
+
+	return baseSchema;
+};
+
+const validateAuthentication = (authPath, errors) => {
+	// Authentication is optional, so only validate if it exists
+	if (fs.existsSync(authPath)) {
+		const authSchema = readAndParseJson(
+			authPath,
+			"authentication.json",
+			errors
+		);
+
+		// Validate authentication schema parameters
+		if (authSchema && Array.isArray(authSchema.parameters)) {
+			validateComponentSchemas(authSchema.parameters, errors);
+		}
+
+		// Validate authentication type-specific parameters (like api_key, oauth, etc.)
+		if (authSchema) {
+			Object.keys(authSchema).forEach((key) => {
+				if (
+					key !== "parameters" &&
+					typeof authSchema[key] === "object" &&
+					authSchema[key] !== null
+				) {
+					if (Array.isArray(authSchema[key].parameters)) {
+						validateComponentSchemas(
+							authSchema[key].parameters,
+							errors
+						);
+					}
+				}
+			});
+		}
+	}
 };
 
 const validateResources = (resourcesDir, resourceFields, errors) => {
@@ -121,7 +397,17 @@ const validateResources = (resourcesDir, resourceFields, errors) => {
 		);
 		if (!schema) return;
 
-		const operationFields = findOperationFieldsWithOptions(schema);
+		// Validate resource file parameters
+		if (Array.isArray(schema.parameters)) {
+			validateComponentSchemas(schema.parameters, errors);
+		}
+
+		const operationFields = findOperationFieldsWithOptions(
+			schema,
+			`${resourceFile}.json`,
+			errors,
+			resourceFile
+		);
 
 		operationFields.forEach((operation) => {
 			const operationMethod = operation.split(".")[1];
@@ -144,6 +430,11 @@ const validateResources = (resourcesDir, resourceFields, errors) => {
 				errors.add(
 					`Operation "${operationMethod}" in "${resourceFile}.json" is missing parameters.`
 				);
+			} else {
+				// Validate operation parameters using component schemas
+				if (Array.isArray(methodDef.parameters)) {
+					validateComponentSchemas(methodDef.parameters, errors);
+				}
 			}
 			if (!methodDef.definition) {
 				errors.add(
@@ -153,23 +444,6 @@ const validateResources = (resourcesDir, resourceFields, errors) => {
 		});
 	});
 };
-
-// const validateParametersScema = (schema, errors) => {
-// 	if (!schema || !Array.isArray(schema.parameters)) {
-// 		errors.add(
-// 			`Schema is missing or parameters are not defined as an array.`
-// 		);
-// 		return;
-// 	}
-// 	schema.parameters.forEach((param) => {
-// 		const { meta } = param;
-// 		if (!param.name) {
-// 			errors.add(
-// 				`Parameter in schema is missing a name. Ensure all parameters have a "name" field.`
-// 			);
-// 		}
-// 	});
-// };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN FUNCTION
@@ -184,6 +458,7 @@ export const validateIntegrationSchemas = (currentDir) => {
 		resources: path.join(currentDir, "schemas", "resources"),
 		spec: path.join(currentDir, "spec.json"),
 		webhook: path.join(currentDir, "schemas", "webhook.json"),
+		authentication: path.join(currentDir, "schemas", "authentication.json"),
 		documentation: path.join(currentDir, "Documentation.mdx"),
 	};
 
@@ -192,10 +467,11 @@ export const validateIntegrationSchemas = (currentDir) => {
 
 	const spec = validateSpec(paths.spec, errors);
 	validateWebhook(paths.webhook, spec, errors);
+	validateAuthentication(paths.authentication, errors);
 
 	const baseSchema = validateBaseSchema(paths.base, errors);
 	const resourceFields = baseSchema
-		? findResourceFieldsWithOptions(baseSchema)
+		? findResourceFieldsWithOptions(baseSchema, "base.json", errors)
 		: [];
 
 	validateResources(paths.resources, resourceFields, errors);

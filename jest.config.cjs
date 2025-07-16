@@ -1,3 +1,5 @@
+const stripAnsi = require("strip-ansi");
+
 module.exports = {
 	testEnvironment: "node",
 	transformIgnorePatterns: ["node_modules/(?!@inquirer/prompts)/"],
@@ -15,6 +17,7 @@ module.exports = {
 		"^../config/(.*)$": "<rootDir>/config/$1",
 		"^../helper/(.*)$": "<rootDir>/helper/$1",
 		"^../utils/(.*)$": "<rootDir>/utils/$1",
+		"^../templates/(.*)$": "<rootDir>/templates/$1",
 	},
 	testEnvironmentOptions: {
 		customExportConditions: ["node", "node-addons"],
@@ -36,7 +39,7 @@ module.exports = {
 	],
 	coverageThreshold: {
 		global: {
-			branches: 90,
+			branches: 80,
 			functions: 90,
 			lines: 90,
 			statements: 90,

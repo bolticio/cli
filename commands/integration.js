@@ -34,8 +34,12 @@ const commands = {
 		description: "Edit an existing integration",
 		action: handleEdit,
 	},
+	submit: {
+		description: "Submit an integration for review",
+		action: handleSubmit,
+	},
 	publish: {
-		description: "Publish an integration",
+		description: "Publish an integration (deprecated, use submit)",
 		action: handlePublish,
 	},
 	sync: {
@@ -51,7 +55,7 @@ const commands = {
 		action: handleStatus,
 	},
 	test: {
-		description: "Run tests for the integration",
+		description: "Run tests for the integration with coverage",
 		action: handleTest,
 	},
 	help: {
@@ -236,8 +240,8 @@ async function handleSync(args) {
 }
 
 // Publish an integration
-async function handlePublish(args) {
-	console.log(chalk.green("Publishing integration...\n"));
+async function handleSubmit(args) {
+	console.log(chalk.green("Submitting integration for review...\n"));
 	// Parse command line arguments
 	let currentDir = process.cwd();
 	const pathIndex = args.indexOf("--path");
@@ -347,16 +351,30 @@ async function handlePublish(args) {
 			if (review) {
 				console.log(
 					chalk.green(
-						"\n✅ Integration sent to review successfully!\n"
+						"\n✅ Integration submitted for review successfully!\n"
 					)
 				);
 			}
 		} else {
 			console.error(
-				chalk.red("\n❌ Error publishing integration:", data.message)
+				chalk.red("\n❌ Error submitting integration:", data.message)
 			);
 		}
 	}
+}
+
+async function handlePublish(args) {
+	console.log(
+		chalk.yellow(
+			"⚠️  WARNING: The 'publish' command is deprecated and will be removed in a future version."
+		)
+	);
+	console.log(
+		chalk.yellow("Please use 'boltic integration submit' instead.\n")
+	);
+
+	// Call the new submit function
+	await handleSubmit(args);
 }
 
 // Execute the integration command
@@ -609,15 +627,15 @@ async function handleCreate() {
 					create_catalogue
 				);
 
-				// Also share Documentation URL to the user: https://docs.boltic.io/docs/integration-builder/develop/boilerplate
 				const documentationUrl =
 					"https://docs.boltic.io/docs/integration-builder/develop/boilerplate";
+
 				console.log(
 					chalk.cyan(
-						"\n📄 Documentation URL: " +
-							chalk.underline.blue(documentationUrl)
+						`📄 For detailed instructions on next steps, refer to the official documentation:`
 					)
 				);
+				console.log(chalk.underline.blue(documentationUrl));
 			}
 		} catch (error) {
 			console.error(
@@ -909,6 +927,26 @@ function showHelp() {
 	Object.entries(commands).forEach(([cmd, details]) => {
 		console.log(chalk.bold(`${cmd}`) + ` - ${details.description}`);
 	});
+
+	console.log(chalk.cyan("\nTest Command Usage:"));
+	console.log(chalk.dim("  boltic integration test"));
+	console.log(chalk.dim("  boltic integration test --path /path/to/project"));
+	console.log(chalk.dim("  boltic integration test --config jest.config.js"));
+	console.log(chalk.dim("  boltic integration test --watchAll"));
+	console.log(chalk.dim("  boltic integration test --updateSnapshot"));
+
+	console.log(chalk.cyan("\nSupported Flags:"));
+	console.log(
+		chalk.dim("  --path <directory>    Run tests in specific directory")
+	);
+	console.log(
+		chalk.dim("  --config <file>       Use specific Jest config file")
+	);
+	console.log(
+		chalk.dim("  --watchAll           Watch all files for changes")
+	);
+	console.log(chalk.dim("  --updateSnapshot     Update snapshots"));
+	console.log(chalk.dim("  All other Jest CLI flags are supported"));
 }
 
 // Show detailed information about an integration
@@ -1036,7 +1074,9 @@ async function handleStatus() {
 async function handleTest(args) {
 	// Parse command line arguments
 	let currentDir = process.cwd();
+	let jestConfigFile = null;
 	const pathIndex = args.indexOf("--path");
+	const configIndex = args.indexOf("--config");
 
 	if (pathIndex !== -1 && args[pathIndex + 1]) {
 		currentDir = args[pathIndex + 1];
@@ -1051,72 +1091,228 @@ async function handleTest(args) {
 		}
 	}
 
+	if (configIndex !== -1 && args[configIndex + 1]) {
+		jestConfigFile = args[configIndex + 1];
+		// Validate the config file path
+		const configPath = path.isAbsolute(jestConfigFile)
+			? jestConfigFile
+			: path.join(currentDir, jestConfigFile);
+
+		if (!fs.existsSync(configPath)) {
+			console.error(
+				chalk.red(
+					`Error: Jest config file does not exist: ${configPath}`
+				)
+			);
+			return;
+		}
+	}
+
 	const { spawn } = await import("child_process");
 
 	console.log(chalk.cyan.bold("\n🧪 Running integration tests...\n"));
 
-	// Look for test directory
+	// Look for test directory and test files
 	const testDirs = ["test", "tests", "__tests__"];
 	let testDir = null;
+	let testFiles = [];
 
+	// Check for test directories
 	for (const dir of testDirs) {
-		if (fs.existsSync(dir)) {
+		const testPath = path.join(currentDir, dir);
+		if (fs.existsSync(testPath)) {
 			testDir = dir;
+			// Find all test files in the directory
+			const files = fs.readdirSync(testPath);
+			testFiles = files.filter(
+				(file) =>
+					file.endsWith(".test.js") ||
+					file.endsWith(".spec.js") ||
+					file.endsWith(".test.ts") ||
+					file.endsWith(".spec.ts")
+			);
 			break;
 		}
 	}
 
+	// If no test directory found, look for test files in current directory
 	if (!testDir) {
-		console.log(
-			chalk.yellow(
-				"⚠️  No test directory found. Looked for: test, tests, __tests__"
-			)
+		const currentDirFiles = fs.readdirSync(currentDir);
+		testFiles = currentDirFiles.filter(
+			(file) =>
+				file.endsWith(".test.js") ||
+				file.endsWith(".spec.js") ||
+				file.endsWith(".test.ts") ||
+				file.endsWith(".spec.ts")
 		);
-		return;
-	}
 
-	console.log(chalk.dim(`📁 Found test directory: ${testDir}`));
-
-	// Check if Jest is available
-	const packageJsonPath = path.join(process.cwd(), "package.json");
-	let hasJest = false;
-
-	if (fs.existsSync(packageJsonPath)) {
-		try {
-			const packageJson = JSON.parse(
-				fs.readFileSync(packageJsonPath, "utf-8")
+		if (testFiles.length === 0) {
+			console.log(
+				chalk.yellow(
+					"⚠️  No test files found. Looked for: test, tests, __tests__ directories and *.test.js, *.spec.js, *.test.ts, *.spec.ts files"
+				)
 			);
-			hasJest = !!(
-				packageJson.devDependencies?.jest ||
-				packageJson.dependencies?.jest
-			);
-		} catch (error) {
-			console.log(chalk.yellow("⚠️  Could not read package.json"));
+			return;
 		}
 	}
 
-	if (!hasJest) {
+	if (testFiles.length === 0 && testDir) {
 		console.log(
-			chalk.red(
-				"❌ Jest is not installed. Please install Jest to run tests."
+			chalk.yellow(
+				`⚠️  No test files found in ${testDir} directory. Looking for: *.test.js, *.spec.js, *.test.ts, *.spec.ts files`
 			)
 		);
 		return;
 	}
 
-	// Run Jest with the test directory
+	console.log(chalk.dim(`📁 Found test directory: ${testDir || currentDir}`));
+	console.log(
+		chalk.dim(
+			`📋 Found ${testFiles.length} test file(s): ${testFiles.join(", ")}`
+		)
+	);
+
+	// Check for Jest configuration
+	let jestConfigPath;
+	if (jestConfigFile) {
+		jestConfigPath = path.isAbsolute(jestConfigFile)
+			? jestConfigFile
+			: path.join(currentDir, jestConfigFile);
+	} else {
+		// Look for default config files
+		const defaultConfigs = [
+			"jest.config.cjs",
+			"jest.config.js",
+			"jest.config.json",
+		];
+		for (const configFile of defaultConfigs) {
+			const configPath = path.join(currentDir, configFile);
+			if (fs.existsSync(configPath)) {
+				jestConfigPath = configPath;
+				break;
+			}
+		}
+	}
+
+	const jestConfigExists = !!jestConfigPath;
+	const configFileName = jestConfigPath
+		? path.basename(jestConfigPath)
+		: null;
+
+	console.log(
+		chalk.dim(
+			`⚙️  Jest configuration: ${jestConfigExists ? `Found ${configFileName}` : "Using default configuration"}`
+		)
+	);
+
+	// Prepare Jest arguments
+	const jestArgs = ["jest"];
+
+	// Add basic Jest flags
+	jestArgs.push("--coverage");
+	jestArgs.push("--verbose");
+	jestArgs.push("--colors");
+	jestArgs.push("--passWithNoTests");
+
+	// Add config file if exists, otherwise use simple patterns
+	if (jestConfigExists) {
+		jestArgs.push("--config", jestConfigPath);
+	} else {
+		// Use simple test matching patterns
+		if (testDir) {
+			jestArgs.push(
+				"--testMatch",
+				`**/${testDir}/**/*.{test,spec}.{js,ts}`
+			);
+		} else {
+			jestArgs.push("--testMatch", "**/*.{test,spec}.{js,ts}");
+		}
+		jestArgs.push("--collectCoverageFrom", "lib/**/*.{js,ts}");
+		jestArgs.push("--collectCoverageFrom", "src/**/*.{js,ts}");
+		jestArgs.push("--collectCoverageFrom", "*.{js,ts}");
+		jestArgs.push("--coveragePathIgnorePatterns", "/node_modules/");
+		jestArgs.push("--coveragePathIgnorePatterns", "/tests/");
+	}
+
+	// Add any additional Jest arguments passed by user
+	const additionalArgs = args.filter((arg, index) => {
+		// Skip our custom flags and their values
+		if (arg === "--path" || arg === "--config") return false;
+		if (args[index - 1] === "--path" || args[index - 1] === "--config")
+			return false;
+		return true;
+	});
+
+	if (additionalArgs.length > 0) {
+		jestArgs.push(...additionalArgs);
+		console.log(
+			chalk.dim(
+				`🔧 Additional Jest arguments: ${additionalArgs.join(" ")}`
+			)
+		);
+	}
+
+	console.log(chalk.dim(`🚀 Running command: npx ${jestArgs.join(" ")}`));
+	console.log(chalk.cyan("─".repeat(50)));
+
+	// Run Jest with coverage
 	return new Promise((resolve, reject) => {
-		const jestProcess = spawn("npx", ["jest", testDir, "--verbose"], {
+		const jestProcess = spawn("npx", jestArgs, {
 			stdio: "inherit",
 			shell: true,
+			cwd: currentDir,
 		});
 
 		jestProcess.on("close", (code) => {
+			console.log(chalk.cyan("─".repeat(50)));
+
 			if (code === 0) {
 				console.log(chalk.green.bold("\n✅ All tests passed!"));
+
+				// Check for coverage directory
+				const coverageDir = path.join(currentDir, "coverage");
+				if (fs.existsSync(coverageDir)) {
+					console.log(chalk.cyan("\n📊 Coverage Report Generated:"));
+					console.log(chalk.dim(`   Directory: ${coverageDir}`));
+
+					// Check for HTML report
+					const htmlReportPath = path.join(
+						coverageDir,
+						"lcov-report",
+						"index.html"
+					);
+					if (fs.existsSync(htmlReportPath)) {
+						console.log(
+							chalk.dim(`   HTML Report: ${htmlReportPath}`)
+						);
+					}
+
+					// Check for text report
+					const textReportPath = path.join(coverageDir, "lcov.info");
+					if (fs.existsSync(textReportPath)) {
+						console.log(
+							chalk.dim(`   LCOV Report: ${textReportPath}`)
+						);
+					}
+				}
+
+				// Show test summary
+				console.log(chalk.cyan("\n📋 Test Summary:"));
+				console.log(chalk.dim(`   Test files: ${testFiles.length}`));
+				console.log(
+					chalk.dim(`   Test directory: ${testDir || currentDir}`)
+				);
+				console.log(chalk.green("   Status: PASSED"));
 			} else {
 				console.log(chalk.red.bold("\n❌ Some tests failed."));
+				console.log(chalk.red(`   Exit code: ${code}`));
 			}
+
+			console.log(
+				chalk.cyan(
+					"\n💡 Tip: Check the coverage directory for detailed coverage reports"
+				)
+			);
 			resolve(code);
 		});
 
