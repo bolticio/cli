@@ -519,15 +519,6 @@ npm install -g @boltic/cli@latest
 boltic --version
 ```
 
-**Development mode troubleshooting**:
-
-```bash
-# For contributors using development installation
-npm install  # Update dependencies
-npm link     # Re-link CLI
-npm test     # Run test suite
-```
-
 #### 9. Emergency Recovery
 
 **If all else fails**:
