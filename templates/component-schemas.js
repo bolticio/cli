@@ -914,6 +914,29 @@ const button = {
 	},
 };
 
+const datetime = {
+	name: "datetime-picker",
+	meta: {
+		displayName: "Enter Date with Start Time",
+		description: "Please enter date and start time",
+		displayType: "datetime",
+		value: "2024-02-14",
+		validation: {
+			required: false,
+		},
+		readOnly: false,
+		htmlProps: {
+			format: "YYYY-MM-DD HH:mm:ss",
+			disabled: false,
+			timeSteps: {
+				hours: 1,
+				minutes: 5,
+				seconds: 5,
+			},
+		},
+	},
+};
+
 export {
 	accordion,
 	array,
@@ -922,6 +945,7 @@ export {
 	checkbox,
 	code,
 	date,
+	datetime,
 	divider,
 	email,
 	file,
