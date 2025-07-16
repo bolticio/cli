@@ -110,7 +110,12 @@ const select = {
 			url: "/api/options",
 			labelKey: "label",
 			valueKey: "value",
-			body: {},
+			body: {
+				secret: "secret",
+				loadOptionsMethod: "get",
+				resource: "resource",
+				operation: "operation",
+			},
 		},
 		displayProps: { loading: false },
 		validation: {
@@ -118,6 +123,17 @@ const select = {
 			requiredDetail: {
 				errorMsg: "Selection is required",
 			},
+			max: 10,
+			maxDetail: {
+				errorMsg: "Too many options",
+			},
+			min: 1,
+			minDetail: {
+				errorMsg: "At least one option is required",
+			},
+		},
+		htmlProps: {
+			allowDynamic: false,
 		},
 		dependencies: {
 			logic: "AND",

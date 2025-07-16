@@ -142,14 +142,17 @@ const validateSchemaKeys = (
 	schemaName,
 	displayType,
 	errors,
-	prefix = ""
+	prefix = "",
+	filename = ""
 ) => {
+	const fileLabel = filename ? ` in "${filename}"` : "";
+
 	Object.keys(schemaObj).forEach((key) => {
 		const fullKey = prefix ? `${prefix}.${key}` : key;
 
 		if (!allowedKeys.has(fullKey)) {
 			errors.add(
-				`"${schemaName}" has an invalid key "${fullKey}" for displayType "${displayType}".`
+				`"${schemaName}" has an invalid key "${fullKey}" for displayType "${displayType}"${fileLabel}.`
 			);
 		}
 
@@ -164,7 +167,8 @@ const validateSchemaKeys = (
 				schemaName,
 				displayType,
 				errors,
-				fullKey
+				fullKey,
+				filename
 			);
 		}
 	});
@@ -175,21 +179,29 @@ const validateSchemaKeys = (
  * @param {Object} schema - The schema to validate
  * @param {string} displayType - The display type to validate against
  * @param {Set} errors - Error collection
+ * @param {string} filename - The filename for error messages
  */
-const validateComponentByType = (schema, displayType, errors) => {
+const validateComponentByType = (
+	schema,
+	displayType,
+	errors,
+	filename = ""
+) => {
+	const fileLabel = filename ? ` in "${filename}"` : "";
+
 	// Get the component schema definition for this display type
 	const componentSchema = componentSchemas[displayType];
 
 	if (!componentSchema) {
 		errors.add(
-			`"${schema.name}" has an unsupported displayType "${displayType}".`
+			`"${schema.name}" has an unsupported displayType "${displayType}"${fileLabel}.`
 		);
 		return;
 	}
 
 	if (!componentSchema.meta) {
 		errors.add(
-			`Component schema for "${displayType}" is missing meta definition.`
+			`Component schema for "${displayType}" is missing meta definition${fileLabel}.`
 		);
 		return;
 	}
@@ -204,29 +216,39 @@ const validateComponentByType = (schema, displayType, errors) => {
 		allowedKeys,
 		schema.name,
 		currentDisplayType,
-		errors
+		errors,
+		"",
+		filename
 	);
 };
 
-const validateComponentSchemas = (schemas, errors) => {
+const validateComponentSchemas = (schemas, errors, filename = "") => {
+	const fileLabel = filename ? ` in "${filename}"` : "";
+
 	schemas.forEach((schema) => {
 		// Basic required field validation
 		if (!schema.name) {
-			errors.add(`Schema is missing a name.`);
+			errors.add(`Schema is missing a name${fileLabel}.`);
 			return; // Can't continue without a name
 		}
 		if (!schema.meta) {
-			errors.add(`"${schema.name}" is missing a meta object.`);
+			errors.add(
+				`"${schema.name}" is missing a meta object${fileLabel}.`
+			);
 			return; // Can't continue without meta
 		}
 		if (!schema.meta.displayType) {
-			errors.add(`"${schema.name}" is missing a displayType.`);
+			errors.add(
+				`"${schema.name}" is missing a displayType${fileLabel}.`
+			);
 			return; // Can't continue without displayType
 		}
 
 		// Optional field validation (these are warnings, not blocking)
 		if (!schema.meta.displayName) {
-			errors.add(`"${schema.name}" is missing a displayName.`);
+			errors.add(
+				`"${schema.name}" is missing a displayName${fileLabel}.`
+			);
 		}
 
 		// Only require placeholder if the component schema defines it
@@ -237,7 +259,9 @@ const validateComponentSchemas = (schemas, errors) => {
 			"placeholder" in componentSchema.meta &&
 			!schema.meta.placeholder
 		) {
-			errors.add(`"${schema.name}" is missing a placeholder.`);
+			errors.add(
+				`"${schema.name}" is missing a placeholder${fileLabel}.`
+			);
 		}
 
 		// Only require description if the component schema defines it
@@ -247,7 +271,9 @@ const validateComponentSchemas = (schemas, errors) => {
 			"description" in componentSchema.meta &&
 			!schema.meta.description
 		) {
-			errors.add(`"${schema.name}" is missing a description.`);
+			errors.add(
+				`"${schema.name}" is missing a description${fileLabel}.`
+			);
 		}
 
 		// 🚨 Validate for duplicate options with same label and value
@@ -258,7 +284,7 @@ const validateComponentSchemas = (schemas, errors) => {
 					const key = `${option.label}::${option.value}`;
 					if (seen.has(key)) {
 						errors.add(
-							`"${schema.name}" contains duplicate option at index ${index} with label "${option.label}" and value "${option.value}".`
+							`"${schema.name}" contains duplicate option at index ${index} with label "${option.label}" and value "${option.value}"${fileLabel}.`
 						);
 					} else {
 						seen.add(key);
@@ -268,7 +294,12 @@ const validateComponentSchemas = (schemas, errors) => {
 		}
 
 		// Validate against the specific component type schema
-		validateComponentByType(schema, schema.meta.displayType, errors);
+		validateComponentByType(
+			schema,
+			schema.meta.displayType,
+			errors,
+			filename
+		);
 	});
 };
 
@@ -314,7 +345,11 @@ const validateWebhook = (webhookPath, spec, errors) => {
 			errors
 		);
 		if (webhookSchema && Array.isArray(webhookSchema.parameters)) {
-			validateComponentSchemas(webhookSchema.parameters, errors);
+			validateComponentSchemas(
+				webhookSchema.parameters,
+				errors,
+				"webhook.json"
+			);
 		}
 	}
 };
@@ -329,7 +364,7 @@ const validateBaseSchema = (baseSchemaPath, errors) => {
 
 	// Validate base schema parameters
 	if (baseSchema && Array.isArray(baseSchema.parameters)) {
-		validateComponentSchemas(baseSchema.parameters, errors);
+		validateComponentSchemas(baseSchema.parameters, errors, "base.json");
 	}
 
 	return baseSchema;
@@ -346,7 +381,11 @@ const validateAuthentication = (authPath, errors) => {
 
 		// Validate authentication schema parameters
 		if (authSchema && Array.isArray(authSchema.parameters)) {
-			validateComponentSchemas(authSchema.parameters, errors);
+			validateComponentSchemas(
+				authSchema.parameters,
+				errors,
+				"authentication.json"
+			);
 		}
 
 		// Validate authentication type-specific parameters (like api_key, oauth, etc.)
@@ -360,7 +399,8 @@ const validateAuthentication = (authPath, errors) => {
 					if (Array.isArray(authSchema[key].parameters)) {
 						validateComponentSchemas(
 							authSchema[key].parameters,
-							errors
+							errors,
+							"authentication.json"
 						);
 					}
 				}
@@ -399,7 +439,11 @@ const validateResources = (resourcesDir, resourceFields, errors) => {
 
 		// Validate resource file parameters
 		if (Array.isArray(schema.parameters)) {
-			validateComponentSchemas(schema.parameters, errors);
+			validateComponentSchemas(
+				schema.parameters,
+				errors,
+				`${resourceFile}.json`
+			);
 		}
 
 		const operationFields = findOperationFieldsWithOptions(
@@ -433,7 +477,11 @@ const validateResources = (resourcesDir, resourceFields, errors) => {
 			} else {
 				// Validate operation parameters using component schemas
 				if (Array.isArray(methodDef.parameters)) {
-					validateComponentSchemas(methodDef.parameters, errors);
+					validateComponentSchemas(
+						methodDef.parameters,
+						errors,
+						`${resourceFile}.json`
+					);
 				}
 			}
 			if (!methodDef.definition) {
