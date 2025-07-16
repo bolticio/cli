@@ -1454,5 +1454,262 @@ describe("Validation", () => {
 				result.errors.some((error) => error.includes("invalid option"))
 			).toBe(true);
 		});
+
+		it("should handle config.body skip validation for select displayType", () => {
+			mockExists.mockImplementation((filePath) => {
+				return (
+					filePath.includes("Documentation.mdx") ||
+					filePath.includes("spec.json") ||
+					filePath.includes("base.json") ||
+					filePath.includes("resources")
+				);
+			});
+			mockReaddirSync.mockReturnValue([]);
+
+			mockReadFileSync.mockImplementation((filePath) => {
+				if (filePath.includes("spec.json")) {
+					return JSON.stringify({
+						name: "Test Integration",
+						activity_type: "customActivity",
+					});
+				}
+				if (filePath.includes("base.json")) {
+					return JSON.stringify({
+						parameters: [
+							{
+								name: "test_param",
+								meta: {
+									displayType: "select",
+									displayName: "Test Parameter",
+									placeholder: "Select option",
+									description: "Test description",
+									options: [],
+									config: {
+										body: {
+											arbitraryKey: "should be allowed",
+											anotherKey: "also allowed",
+										},
+									},
+								},
+							},
+						],
+					});
+				}
+				return "{}";
+			});
+
+			const result = validation.validateIntegrationSchemas(testDir);
+			expect(result.success).toBe(true);
+		});
+
+		it("should handle config.body skip validation for autocomplete displayType", () => {
+			mockExists.mockImplementation((filePath) => {
+				return (
+					filePath.includes("Documentation.mdx") ||
+					filePath.includes("spec.json") ||
+					filePath.includes("base.json") ||
+					filePath.includes("resources")
+				);
+			});
+			mockReaddirSync.mockReturnValue([]);
+
+			mockReadFileSync.mockImplementation((filePath) => {
+				if (filePath.includes("spec.json")) {
+					return JSON.stringify({
+						name: "Test Integration",
+						activity_type: "customActivity",
+					});
+				}
+				if (filePath.includes("base.json")) {
+					return JSON.stringify({
+						parameters: [
+							{
+								name: "test_param",
+								meta: {
+									displayType: "autocomplete",
+									displayName: "Test Parameter",
+									placeholder: "Type to search",
+									description: "Test description",
+									options: [],
+									config: {
+										body: {
+											arbitraryKey: "should be allowed",
+											anotherKey: "also allowed",
+										},
+									},
+								},
+							},
+						],
+					});
+				}
+				return "{}";
+			});
+
+			const result = validation.validateIntegrationSchemas(testDir);
+			expect(result.success).toBe(true);
+		});
+
+		it("should handle config.body skip validation for multiselect displayType", () => {
+			mockExists.mockImplementation((filePath) => {
+				return (
+					filePath.includes("Documentation.mdx") ||
+					filePath.includes("spec.json") ||
+					filePath.includes("base.json") ||
+					filePath.includes("resources")
+				);
+			});
+			mockReaddirSync.mockReturnValue([]);
+
+			mockReadFileSync.mockImplementation((filePath) => {
+				if (filePath.includes("spec.json")) {
+					return JSON.stringify({
+						name: "Test Integration",
+						activity_type: "customActivity",
+					});
+				}
+				if (filePath.includes("base.json")) {
+					return JSON.stringify({
+						parameters: [
+							{
+								name: "test_param",
+								meta: {
+									displayType: "multiselect",
+									displayName: "Test Parameter",
+									placeholder: "Select multiple",
+									description: "Test description",
+									options: [],
+									config: {
+										body: {
+											arbitraryKey: "should be allowed",
+											anotherKey: "also allowed",
+										},
+									},
+								},
+							},
+						],
+					});
+				}
+				return "{}";
+			});
+
+			const result = validation.validateIntegrationSchemas(testDir);
+			expect(result.success).toBe(true);
+		});
+
+		it("should validate duplicate options in schema", () => {
+			mockExists.mockReturnValue(true);
+			mockReaddirSync.mockReturnValue([]);
+
+			mockReadFileSync.mockImplementation((filePath) => {
+				if (filePath.includes("spec.json")) {
+					return JSON.stringify({
+						name: "Test Integration",
+						activity_type: "customActivity",
+					});
+				}
+				if (filePath.includes("base.json")) {
+					return JSON.stringify({
+						parameters: [
+							{
+								name: "test_param",
+								meta: {
+									displayType: "select",
+									displayName: "Test Parameter",
+									placeholder: "Select option",
+									description: "Test description",
+									options: [
+										{
+											value: "option1",
+											label: "Option 1",
+											description: "First option",
+										},
+										{
+											value: "option1",
+											label: "Option 1",
+											description: "Duplicate option",
+										},
+									],
+								},
+							},
+						],
+					});
+				}
+				return "{}";
+			});
+
+			const result = validation.validateIntegrationSchemas(testDir);
+			expect(result.success).toBe(false);
+			expect(
+				result.errors.some((error) =>
+					error.includes("contains duplicate option")
+				)
+			).toBe(true);
+		});
+
+		it("should handle operation split with empty operationMethod", () => {
+			mockExists.mockReturnValue(true);
+			mockReaddirSync.mockReturnValue(["resource1.json"]);
+
+			mockReadFileSync.mockImplementation((filePath) => {
+				if (filePath.includes("spec.json")) {
+					return JSON.stringify({
+						name: "Test Integration",
+						activity_type: "customActivity",
+					});
+				}
+				if (filePath.includes("base.json")) {
+					return JSON.stringify({
+						parameters: [
+							{
+								name: "resource",
+								meta: {
+									displayType: "select",
+									placeholder: "Select resource",
+									description: "Choose resource",
+									options: [
+										{
+											value: "resource1",
+											label: "Resource 1",
+											description: "First resource",
+										},
+									],
+								},
+							},
+						],
+					});
+				}
+				if (filePath.includes("resource1.json")) {
+					return JSON.stringify({
+						parameters: [
+							{
+								name: "operation",
+								meta: {
+									displayType: "select",
+									placeholder: "Select operation",
+									description: "Choose operation",
+									options: [
+										{
+											value: "resource1.",
+											label: "Invalid",
+											description:
+												"Empty operation method",
+										},
+									],
+								},
+							},
+						],
+					});
+				}
+				return "{}";
+			});
+
+			const result = validation.validateIntegrationSchemas(testDir);
+			expect(result.success).toBe(false);
+			expect(
+				result.errors.some((error) =>
+					error.includes('Invalid format for operation "resource1."')
+				)
+			).toBe(true);
+		});
 	});
 });

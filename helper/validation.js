@@ -150,6 +150,17 @@ const validateSchemaKeys = (
 	Object.keys(schemaObj).forEach((key) => {
 		const fullKey = prefix ? `${prefix}.${key}` : key;
 
+		// Special handling for config.body - skip validation for select, autocomplete, and multiselect
+		if (
+			fullKey === "config.body" &&
+			(displayType === "select" ||
+				displayType === "autocomplete" ||
+				displayType === "multiselect")
+		) {
+			// For these display types, config.body can contain any keys, so we skip validation
+			return;
+		}
+
 		if (!allowedKeys.has(fullKey)) {
 			errors.add(
 				`"${schemaName}" has an invalid key "${fullKey}" for displayType "${displayType}"${fileLabel}.`
@@ -159,7 +170,14 @@ const validateSchemaKeys = (
 		if (
 			typeof schemaObj[key] === "object" &&
 			schemaObj[key] !== null &&
-			!Array.isArray(schemaObj[key])
+			!Array.isArray(schemaObj[key]) &&
+			// Skip recursion for config.body of select/autocomplete/multiselect
+			!(
+				fullKey === "config.body" &&
+				(displayType === "select" ||
+					displayType === "autocomplete" ||
+					displayType === "multiselect")
+			)
 		) {
 			validateSchemaKeys(
 				schemaObj[key],

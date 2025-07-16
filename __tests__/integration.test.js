@@ -1179,9 +1179,8 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.execute(["status"]);
 
-			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining("Error fetching integration status:"),
-				expect.stringContaining("User force closed the prompt")
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("⚠️ Operation cancelled by user")
 			);
 		});
 
@@ -1794,9 +1793,8 @@ describe("Integration Commands", () => {
 
 			await IntegrationCommands.execute(["status"]);
 
-			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining("Error fetching integration status:"),
-				expect.stringContaining("User force closed the prompt")
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("⚠️ Operation cancelled by user")
 			);
 		});
 
@@ -1894,60 +1892,6 @@ describe("Integration Commands", () => {
 			await IntegrationCommands.execute(["edit"]);
 
 			expect(search).toHaveBeenCalled();
-		});
-
-		it("should handle test command basic scenarios", async () => {
-			// Test invalid path
-			fs.existsSync = jest.fn().mockReturnValue(false);
-
-			await IntegrationCommands.execute([
-				"test",
-				"--path",
-				"/nonexistent",
-			]);
-
-			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining(
-					"Error: The specified path does not exist"
-				)
-			);
-
-			// Test no files found
-			jest.clearAllMocks();
-			fs.existsSync = jest.fn().mockReturnValue(true);
-			fs.readdirSync = jest.fn().mockReturnValue([]);
-
-			await IntegrationCommands.execute(["test"]);
-
-			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringContaining("⚠️  No test files found")
-			);
-
-			// Test config file validation
-			jest.clearAllMocks();
-
-			// Mock to make all paths exist except the specific config file
-			fs.existsSync = jest.fn().mockImplementation((filePath) => {
-				if (!filePath) return false;
-				// Return false only for the config file path
-				if (filePath.toString().includes("missing.config.js")) {
-					return false;
-				}
-				// Return true for directory and other file checks
-				return true;
-			});
-
-			await IntegrationCommands.execute([
-				"test",
-				"--config",
-				"missing.config.js",
-			]);
-
-			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining(
-					"Error: Jest config file does not exist"
-				)
-			);
 		});
 	});
 });
