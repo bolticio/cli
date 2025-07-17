@@ -1,0 +1,56 @@
+{
+    "parameters": [
+        {
+            "name": "secret",
+            "meta": {
+                "displayName": "Service Account",
+                "displayType": "autocomplete",
+                "placeholder": "Select Service Account",
+                "description": "Your service account credentials are encrypted & can be removed at any time.",
+                "options": [],
+                "config": {
+                    "urlType": "secret",
+                    "method": "get",
+                    "url": "/AHMED_TEST_CASES_TEST?current_page=1&page_size=999",
+                    "labelKey": "name",
+                    "valueKey": "_id"
+                },
+                "htmlProps": {
+                    "showAddNew": true
+                },
+                "value": "",
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "name": "resource",
+            "meta": {
+                "displayName": "Resource",
+                "displayType": "select",
+                "placeholder": "Select a resource",
+                "description": "Select the resource you want to work with.",
+                "options": [
+                    {
+                        "label": "Resource 1",
+                        "value": "resource1",
+                        "description": "Description for Resource 1"
+                    }
+                ],
+                "value": "",
+                "validation": {
+                    "required": true
+                },
+                "dependencies": {
+                    "conditions": [
+                        {
+                            "field": "secret",
+                            "operator": "NOT_EMPTY"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
