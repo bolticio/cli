@@ -554,6 +554,9 @@ const slider = {
 			requiredDetail: {
 				errorMsg: "Value is required",
 			},
+			infoDetail: {
+				infoMsg: "Choose a value between 10 and 90",
+			},
 		},
 	},
 };
