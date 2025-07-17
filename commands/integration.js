@@ -2,6 +2,7 @@ import { confirm, input, search } from "@inquirer/prompts";
 import chalk from "chalk";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 
 import {
 	editIntegration,
@@ -53,6 +54,10 @@ const commands = {
 	status: {
 		description: "Show detailed information about an integration",
 		action: handleStatus,
+	},
+	test: {
+		description: "Test an integration using Jest",
+		action: handleTest,
 	},
 	help: {
 		description: "Show help for integration commands",
@@ -129,6 +134,7 @@ async function handleSync(args) {
 	// Parse command line arguments
 	let currentDir = process.cwd();
 	const pathIndex = args.indexOf("--path");
+	const skipValidation = args.includes("--no-verify");
 
 	if (pathIndex !== -1 && args[pathIndex + 1]) {
 		currentDir = args[pathIndex + 1];
@@ -189,26 +195,33 @@ async function handleSync(args) {
 
 		console.log(chalk.cyan(`\nSyncing integration: ${specContent.name}`));
 
-		console.log("Validating schemas...");
+		if (skipValidation) {
+			console.log(
+				chalk.yellow(
+					"⚠️  Skipping validation (--no-verify flag detected)"
+				)
+			);
+		} else {
+			console.log("Validating schemas...");
 
-		// Validate resources
-		const { validateIntegrationSchemas } = await import(
-			"../helper/validation.js"
-		);
-		const validationResult = validateIntegrationSchemas(currentDir);
-		if (!validationResult.success) {
-			if (Array.isArray(validationResult.errors)) {
-				validationResult.errors.forEach((error) => {
-					console.error(chalk.red(`\n❌ ${error}`));
-				});
+			// Validate resources
+			const { validateIntegrationSchemas } = await import(
+				"../helper/validation.js"
+			);
+			const validationResult = validateIntegrationSchemas(currentDir);
+			if (!validationResult.success) {
+				if (Array.isArray(validationResult.errors)) {
+					validationResult.errors.forEach((error) => {
+						console.error(chalk.red(`\n❌ ${error}`));
+					});
+				}
+				return;
 			}
-			return;
+			console.log(chalk.green("Schemas validated successfully"));
 		}
 
 		const schemas = await readSchemaFiles(currentDir);
 		schemas.status = "draft";
-
-		console.log(chalk.green("Schemas validated successfully"));
 
 		const data = await syncIntegration(apiUrl, token, accountId, session, {
 			integration_id: specContent.id,
@@ -241,6 +254,7 @@ async function handleSubmit(args) {
 	// Parse command line arguments
 	let currentDir = process.cwd();
 	const pathIndex = args.indexOf("--path");
+	const skipValidation = args.includes("--no-verify");
 
 	if (pathIndex !== -1 && args[pathIndex + 1]) {
 		currentDir = args[pathIndex + 1];
@@ -300,27 +314,34 @@ async function handleSubmit(args) {
 
 		console.log(chalk.cyan(`\nSyncing integration: ${specContent.name}`));
 
-		console.log("Validating schemas...");
+		if (skipValidation) {
+			console.log(
+				chalk.yellow(
+					"⚠️  Skipping validation (--no-verify flag detected)"
+				)
+			);
+		} else {
+			console.log("Validating schemas...");
 
-		// Validate resources
-		const { validateIntegrationSchemas } = await import(
-			"../helper/validation.js"
-		);
-		const validationResult = validateIntegrationSchemas(currentDir);
-		if (!validationResult.success) {
-			if (Array.isArray(validationResult.errors)) {
-				validationResult.errors.forEach((error) => {
-					console.error(chalk.red(`\n❌ ${error}`));
-				});
+			// Validate resources
+			const { validateIntegrationSchemas } = await import(
+				"../helper/validation.js"
+			);
+			const validationResult = validateIntegrationSchemas(currentDir);
+			if (!validationResult.success) {
+				if (Array.isArray(validationResult.errors)) {
+					validationResult.errors.forEach((error) => {
+						console.error(chalk.red(`\n❌ ${error}`));
+					});
+				}
+
+				return;
 			}
-
-			return;
+			console.log(chalk.green("Schemas validated successfully"));
 		}
 
 		const schemas = await readSchemaFiles(currentDir);
 		schemas.status = "draft";
-
-		console.log(chalk.green("Schemas validated successfully"));
 
 		const data = await syncIntegration(apiUrl, token, accountId, session, {
 			integration_id: specContent.id,
@@ -917,35 +938,13 @@ async function handlePull(args) {
 	}
 }
 
-// Show help for integration commands
 function showHelp() {
 	console.log(chalk.cyan("\nIntegration Commands:\n"));
 	Object.entries(commands).forEach(([cmd, details]) => {
 		console.log(chalk.bold(`${cmd}`) + ` - ${details.description}`);
 	});
-
-	console.log(chalk.cyan("\nTest Command Usage:"));
-	console.log(chalk.dim("  boltic integration test"));
-	console.log(chalk.dim("  boltic integration test --path /path/to/project"));
-	console.log(chalk.dim("  boltic integration test --config jest.config.js"));
-	console.log(chalk.dim("  boltic integration test --watchAll"));
-	console.log(chalk.dim("  boltic integration test --updateSnapshot"));
-
-	console.log(chalk.cyan("\nSupported Flags:"));
-	console.log(
-		chalk.dim("  --path <directory>    Run tests in specific directory")
-	);
-	console.log(
-		chalk.dim("  --config <file>       Use specific Jest config file")
-	);
-	console.log(
-		chalk.dim("  --watchAll           Watch all files for changes")
-	);
-	console.log(chalk.dim("  --updateSnapshot     Update snapshots"));
-	console.log(chalk.dim("  All other Jest CLI flags are supported"));
 }
 
-// Show detailed information about an integration
 async function handleStatus() {
 	console.log(chalk.green("Fetching integration information...\n"));
 
@@ -1071,6 +1070,61 @@ async function handleStatus() {
 			chalk.red("\n❌ Error fetching integration status:"),
 			error.message || "Unknown error"
 		);
+	}
+}
+
+async function handleTest(args) {
+	console.log(chalk.green("Running integration tests...\n"));
+
+	let currentDir = process.cwd();
+	const pathIndex = args.indexOf("--path");
+
+	if (pathIndex !== -1 && args[pathIndex + 1]) {
+		currentDir = args[pathIndex + 1];
+		if (!fs.existsSync(currentDir)) {
+			console.error(
+				chalk.red(
+					`Error: The specified path does not exist: ${currentDir}`
+				)
+			);
+			return;
+		}
+	}
+
+	const specPath = path.join(currentDir, "spec.json");
+	if (!fs.existsSync(specPath)) {
+		console.error(
+			chalk.red(
+				"Error: No spec.json file found in the current directory. Please ensure you're in an integration directory."
+			)
+		);
+		return;
+	}
+
+	const testsDir = path.join(currentDir, "__tests__");
+	if (!fs.existsSync(testsDir)) {
+		console.error(
+			chalk.red(
+				"Error: No __tests__ directory found. Please create test files in a __tests__ directory."
+			)
+		);
+		return;
+	}
+
+	try {
+		console.log(chalk.cyan("Running Jest tests...\n"));
+
+		const testCommand = `npx jest "${testsDir}" --verbose`;
+		execSync(testCommand, {
+			stdio: "inherit",
+			cwd: currentDir,
+		});
+
+		console.log(chalk.green("\n✓ All tests completed successfully!"));
+	} catch (error) {
+		console.error(chalk.red("\n✗ Tests failed with errors:"));
+		console.error(chalk.red(error.message));
+		process.exit(1);
 	}
 }
 
