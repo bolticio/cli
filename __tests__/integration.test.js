@@ -752,6 +752,89 @@ describe("Integration Commands", () => {
 				expect.stringContaining("Failed to syncing integration")
 			);
 		});
+
+		it("should skip validation with --no-verify flag", async () => {
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(true);
+			jest.mocked(integrationApi.purgeCache).mockResolvedValue(true);
+
+			await IntegrationCommands.execute(["sync", "--no-verify"]);
+
+			expect(
+				validationHelper.validateIntegrationSchemas
+			).not.toHaveBeenCalled();
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Skipping validation (--no-verify flag detected)"
+				)
+			);
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("Integration synced successfully")
+			);
+		});
+
+		it("should skip validation with --no-verify flag even when validation would fail", async () => {
+			jest.mocked(
+				validationHelper.validateIntegrationSchemas
+			).mockReturnValue({
+				success: false,
+				errors: ["This would normally fail"],
+			});
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(true);
+			jest.mocked(integrationApi.purgeCache).mockResolvedValue(true);
+
+			await IntegrationCommands.execute(["sync", "--no-verify"]);
+
+			expect(
+				validationHelper.validateIntegrationSchemas
+			).not.toHaveBeenCalled();
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Skipping validation (--no-verify flag detected)"
+				)
+			);
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("Integration synced successfully")
+			);
+		});
+
+		it("should support --no-verify flag with custom path", async () => {
+			const customPath = "/custom/path";
+			fs.existsSync = jest.fn().mockReturnValue(true);
+			fs.readFileSync = jest.fn().mockReturnValue(
+				JSON.stringify({
+					id: "test-id",
+					name: "TestIntegration",
+				})
+			);
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(true);
+			jest.mocked(integrationApi.purgeCache).mockResolvedValue(true);
+
+			await IntegrationCommands.execute([
+				"sync",
+				"--path",
+				customPath,
+				"--no-verify",
+			]);
+
+			expect(path.join).toHaveBeenCalledWith(customPath, "spec.json");
+			expect(
+				validationHelper.validateIntegrationSchemas
+			).not.toHaveBeenCalled();
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Skipping validation (--no-verify flag detected)"
+				)
+			);
+		});
 	});
 
 	describe("handlePublish", () => {
@@ -825,6 +908,90 @@ describe("Integration Commands", () => {
 				)
 			);
 			expect(integrationApi.sendIntegrationForReview).toHaveBeenCalled();
+		});
+
+		it("should skip validation with --no-verify flag in submit command", async () => {
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(true);
+			jest.mocked(
+				integrationApi.sendIntegrationForReview
+			).mockResolvedValue(true);
+
+			await IntegrationCommands.execute(["submit", "--no-verify"]);
+
+			expect(
+				validationHelper.validateIntegrationSchemas
+			).not.toHaveBeenCalled();
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Skipping validation (--no-verify flag detected)"
+				)
+			);
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Integration submitted for review successfully!"
+				)
+			);
+		});
+
+		it("should skip validation with --no-verify flag in publish command", async () => {
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(true);
+			jest.mocked(
+				integrationApi.sendIntegrationForReview
+			).mockResolvedValue(true);
+
+			await IntegrationCommands.execute(["publish", "--no-verify"]);
+
+			expect(
+				validationHelper.validateIntegrationSchemas
+			).not.toHaveBeenCalled();
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Skipping validation (--no-verify flag detected)"
+				)
+			);
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"WARNING: The 'publish' command is deprecated"
+				)
+			);
+		});
+
+		it("should skip validation with --no-verify flag even when validation would fail in submit", async () => {
+			jest.mocked(
+				validationHelper.validateIntegrationSchemas
+			).mockReturnValue({
+				success: false,
+				errors: ["This would normally fail"],
+			});
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(true);
+			jest.mocked(
+				integrationApi.sendIntegrationForReview
+			).mockResolvedValue(true);
+
+			await IntegrationCommands.execute(["submit", "--no-verify"]);
+
+			expect(
+				validationHelper.validateIntegrationSchemas
+			).not.toHaveBeenCalled();
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Skipping validation (--no-verify flag detected)"
+				)
+			);
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Integration submitted for review successfully!"
+				)
+			);
 		});
 	});
 

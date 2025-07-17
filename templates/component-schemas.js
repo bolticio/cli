@@ -679,6 +679,21 @@ const multiselect = {
 			requiredDetail: {
 				errorMsg: "Selection is required",
 			},
+			min: 1,
+			minDetail: {
+				errorMsg: "At least one option is required",
+			},
+			max: 10,
+			maxDetail: {
+				errorMsg: "Too many options",
+			},
+			pattern: "^[a-zA-Z]+$",
+			patternDetail: {
+				errorMsg: "Value must be a valid name",
+			},
+		},
+		htmlProps: {
+			allowDynamic: false,
 		},
 		dependencies: {
 			logic: "AND",

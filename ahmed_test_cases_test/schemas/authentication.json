@@ -1,0 +1,45 @@
+{
+    "parameters": [
+        {
+            "name": "type",
+            "meta": {
+                "displayName": "Authentication Type",
+                "displayType": "select",
+                "placeholder": "Select an authentication type",
+                "description": "Choose the type of authentication you want to use.",
+                "options": [
+                    {
+                        "label": "API Key",
+                        "value": "api_key"
+                    }
+                ],
+                "value": "api_key",
+                "validation": {
+                    "required": true,
+                    "requiredDetail": {
+                        "errorMsg": "Authentication type is required"
+                    }
+                }
+            }
+        }
+    ],
+    "api_key": {
+        "parameters": [
+            {
+                "name": "api_key",
+                "meta": {
+                    "displayName": "API Key",
+                    "displayType": "password",
+                    "placeholder": "Enter API Key",
+                    "description": "Your API key for authentication",
+                    "validation": {
+                        "required": true,
+                        "requiredDetail": {
+                            "errorMsg": "API key is required"
+                        }
+                    }
+                }
+            }
+        ]
+    }
+}

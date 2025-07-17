@@ -1,0 +1,17 @@
+{
+    "id": "766689c4-e6c9-4adf-8b21-f69c3a281307",
+    "name": "Ahmed_Test_Cases_Test",
+    "description": {
+        "trigger": "",
+        "integration": "Sample Test Case Integration"
+    },
+    "icon": "https://cdn.pixelbin.io/v2/fyndcloud/original/Temporal/Uploads/bolt/e8b51f71-6062-4c30-958e-f87351ed13bf/images/Paddle_1752734761014.svg",
+    "activity_type": "customActivity",
+    "trigger_type": null,
+    "meta": {
+        "ai_description": {
+            "trigger": "",
+            "integration": "Sample AI Test Case Integration"
+        }
+    }
+}
