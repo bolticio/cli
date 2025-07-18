@@ -785,21 +785,10 @@ const multitext = {
 		displayName: "Name",
 		displayType: "multitext",
 		description: "Multiple field container",
+		placeholder: "Enter text",
 		value: [],
 		readOnly: false,
 		isDisabled: false,
-		children: [
-			{
-				name: "field1",
-				meta: {
-					displayType: "text",
-					displayName: "Field 1",
-					validation: {
-						required: true,
-					},
-				},
-			},
-		],
 		htmlProps: {
 			allowAdd: true,
 			allowRemove: true,
