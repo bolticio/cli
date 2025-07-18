@@ -388,6 +388,9 @@ const toggle = {
 				errorMsg: "Toggle selection is required",
 			},
 		},
+		htmlProps: {
+			allowDynamic: false,
+		},
 		dependencies: {
 			logic: "AND",
 			conditions: [
