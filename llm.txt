@@ -4,7 +4,7 @@
 The Boltic CLI is a Node.js command-line interface for managing Boltic Workflow integrations. It provides tools for creating, editing, syncing, publishing, and testing integrations to the Boltic platform.
 
 **Package**: @boltic/cli
-**Version**: 1.0.10
+**Version**: 1.0.11
 **Repository**: https://github.com/bolticio/cli
 **License**: ISC
 
