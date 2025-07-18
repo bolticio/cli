@@ -1,9 +1,10 @@
 # Boltic CLI - Developer Documentation for AI Assistants
 
 ## Overview
-The Boltic CLI is a Node.js command-line interface for managing Boltic Workflow integrations. It provides tools for creating, editing, syncing, and publishing integrations to the Boltic platform.
+The Boltic CLI is a Node.js command-line interface for managing Boltic Workflow integrations. It provides tools for creating, editing, syncing, publishing, and testing integrations to the Boltic platform.
 
 **Package**: @boltic/cli
+**Version**: 1.0.10
 **Repository**: https://github.com/bolticio/cli
 **License**: ISC
 
@@ -23,97 +24,113 @@ boltic [command] [subcommand] [options]
 ### Main Commands
 
 #### Authentication Commands (`commands/login.js`)
-- `boltic login` - Authenticate with Boltic platform
-- `boltic logout` - Clear authentication tokens
+- `boltic login` - Authenticate with Boltic platform using OAuth 2.0 flow
+- `boltic logout` - Clear authentication tokens from secure storage
 
 #### Integration Commands (`commands/integration.js`)
-- `boltic integration create` - Create new integration
+- `boltic integration create` - Create new integration with interactive wizard
 - `boltic integration edit` - Edit existing integration
-- `boltic integration sync` - Sync changes to draft
-- `boltic integration submit` - Submit for review
+- `boltic integration sync` - Sync changes to draft version
+- `boltic integration submit` - Submit integration for review
 - `boltic integration publish` - Submit for review (deprecated, use submit)
-- `boltic integration pull` - Pull latest changes
-- `boltic integration status` - Show integration details
+- `boltic integration pull` - Pull latest changes from cloud
+- `boltic integration status` - Show detailed integration information
+- `boltic integration test` - Run Jest tests for integration
+- `boltic integration help` - Show integration command help
 
-#### Environment Commands (`commands/env.js`)
-- `boltic env list` - List available environments
-- `boltic env set` - Set current environment
-- `boltic env show` - Show current environment
+
+
+#### General Commands
+- `boltic help` - Display comprehensive help guide
+- `boltic version` - Display CLI version
+- `boltic --verbose [command]` - Enable verbose logging for any command
 
 ### API Layer (`api/`)
-- `integration.js` - Integration management API calls
-- `login.js` - Authentication API calls
-- `environment.js` - Environment management API calls
+- `integration.js` - Integration management API calls (create, edit, sync, submit, pull, status)
+- `login.js` - Authentication API calls and OAuth flow
 
 ### Helper Modules (`helper/`)
-- `validation.js` - Schema validation for integrations
+- `validation.js` - Schema validation for integrations with comprehensive rules
 - `folder.js` - File system operations for integration folders
-- `secure-storage.js` - Secure credential storage using keytar
-- `env.js` - Environment configuration management
+- `secure-storage.js` - Secure credential storage using keytar (OS keychain)
 - `error.js` - Error handling and formatting
-- `command-suggestions.js` - Command similarity suggestions
+- `command-suggestions.js` - Command similarity suggestions for typos
 - `verbose.js` - Verbose logging control
 
 ### Templates (`templates/`)
 - `schemas.js` - Schema templates for integrations
+- `component-schemas.js` - Component-specific schema templates
 
 ### Utilities (`utils/`)
-- `integration.js` - Integration utility functions
+- `integration.js` - Integration utility functions including SVG file selection
 
 ## Key Features
 
 ### Authentication
-- OAuth-based authentication with secure token storage
-- Multiple environment support (bolt, fcz0, fcz5)
-- Automatic token refresh and session management
+- **OAuth 2.0 Flow**: Browser-based authentication with automatic token exchange
+- **Secure Storage**: Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+- **Session Management**: Automatic token refresh and session handling
+- **Browser Integration**: Automatic browser launch for authentication
 
 ### Integration Management
-- **Create**: Interactive creation wizard with prompts for:
-  - Integration name (letters and underscores only)
-  - SVG icon upload
-  - Integration type (Activity, Trigger, or both)
-  - Descriptions (human and AI-generated)
-  - Integration group selection
-- **Edit**: Modify existing integrations
-- **Sync**: Upload changes to draft version
-- **Submit**: Submit integration for review
-- **Publish**: Submit integration for review (deprecated, use submit)
-- **Pull**: Download latest changes from cloud
-- **Status**: View integration details and metadata
+
+#### Create Integration
+Interactive creation wizard with comprehensive prompts:
+- **Integration Name**: Letters and underscores only, max 50 characters
+- **Icon Upload**: SVG file selection and cloud upload
+- **Integration Types**:
+  - Workflow Activity (customActivity)
+  - Workflow Trigger (CloudTrigger)
+  - Both types simultaneously
+- **Descriptions**: Separate human and AI-generated descriptions for activities and triggers
+- **Integration Groups**: Searchable selection from available groups
+- **Authentication Forms**: Optional authentication form creation
+
+#### Integration Operations
+- **Edit**: Modify existing integrations with selection interface
+- **Sync**: Upload changes to draft version with validation
+- **Submit**: Submit integration for review with comprehensive validation
+- **Pull**: Download latest changes from cloud with folder update
+- **Status**: View detailed integration information including metadata
+- **Test**: Run Jest tests within integration directory
+
+#### Advanced Options
+- **Path Specification**: Use `--path` flag to specify integration directory
+- **Validation Control**: Use `--no-verify` flag to skip schema validation
+- **Verbose Logging**: Use `--verbose` flag for detailed operation logs
 
 ### Validation System
-The validation system (`helper/validation.js`) ensures integration schemas are correct:
+Enhanced validation system (`helper/validation.js`):
 
 #### Required Files
 - `Documentation.mdx` - Integration documentation
-- `spec.json` - Integration specification
+- `spec.json` - Integration specification with proper format
+- `schemas/authentication.json` - Authentication configuration
 - `schemas/base.json` - Base schema configuration
 - `schemas/resources/*.json` - Resource-specific schemas
 - `schemas/webhook.json` - Webhook configuration (if trigger_type defined)
 
-#### Schema Structure
-All option objects must include:
-- `label` - Human-readable label
-- `value` - Machine-readable value
-- `description` - Detailed description
-
 #### Validation Rules
-- Resource fields must reference existing resource files
-- Operation fields must reference valid operations in resource files
-- Operations must have both `parameters` and `definition` properties
-- Webhook configuration must match trigger_type in spec.json
+- **Resource References**: All resource fields must reference existing resource files
+- **Operation Validation**: Operations must have both `parameters` and `definition` properties
+- **Trigger Validation**: trigger_type must be "CloudTrigger" or null
+- **Schema Structure**: All option objects must include `label`, `value`, and `description`
+- **File Integrity**: Proper JSON formatting and file existence checks
 
-### Environment Configuration
-Three supported environments defined in `config/environments.js`:
-- **bolt** (production): console.boltic.io
-- **fcz0** (staging): fcz0.de
-- **fcz5** (UAT): uat.fcz0.de
+
 
 ### File System Operations
-- Automatic folder structure creation
-- JSON file parsing and validation
-- SVG file handling for icons
-- Resource file management
+- **Folder Structure Creation**: Automatic creation of integration directory structure
+- **Schema Management**: JSON file parsing, validation, and updates
+- **Icon Handling**: SVG file selection, validation, and cloud upload
+- **Documentation Files**: MDX file management for authentication and general docs
+- **Resource Management**: Dynamic resource file handling
+
+### Testing Integration
+- **Jest Integration**: Built-in support for running Jest tests
+- **Test Discovery**: Automatic detection of `__tests__` directory
+- **Path Support**: Run tests from any integration directory using `--path`
+- **Verbose Output**: Detailed test results and error reporting
 
 ## Development Workflow
 
@@ -121,123 +138,169 @@ Three supported environments defined in `config/environments.js`:
 - **Framework**: Jest with comprehensive test coverage
 - **Coverage**: 96.45% statement coverage, 91.68% branch coverage
 - **Test Files**: Located in `__tests__/` directory
-- **Run Tests**: `npm test`
+- **Integration Tests**: Support for testing integrations with `boltic integration test`
+- **Run Tests**: `npm test` (for CLI) or `boltic integration test` (for integrations)
 
 ### Code Quality
 - **Linting**: ESLint with Prettier integration
 - **Pre-commit**: Husky hooks with lint-staged
 - **Standards**: ES6+ modules, async/await patterns
+- **Type Safety**: Comprehensive input validation and error handling
 
 ### Dependencies
 **Production**:
-- `@inquirer/prompts` - Interactive CLI prompts
-- `axios` - HTTP client for API calls
-- `chalk` - Terminal string styling
-- `keytar` - Secure credential storage
-- `open` - Browser launching
-- `uuid` - Unique identifier generation
-- `lodash.isempty` - Empty value checking
+- `@inquirer/prompts` ^7.3.2 - Interactive CLI prompts with search functionality
+- `axios` ^1.8.2 - HTTP client for API calls
+- `chalk` ^5.3.0 - Terminal string styling and colors
+- `keytar` ^7.9.0 - Secure credential storage in OS keychain
+- `open` ^10.1.0 - Browser launching for OAuth flow
+- `uuid` ^11.1.0 - Unique identifier generation
+- `lodash.isempty` ^4.4.0 - Empty value checking
+- `jest` ^29.7.0 - Testing framework
 
 **Development**:
-- `jest` - Testing framework
-- `eslint` - Code linting
-- `prettier` - Code formatting
-- `husky` - Git hooks
-- `nodemon` - Development server
+- `@babel/core` ^7.26.9 - Babel transpilation
+- `@babel/preset-env` ^7.26.9 - Babel environment preset
+- `eslint` ^9.21.0 - Code linting
+- `prettier` ^3.5.3 - Code formatting
+- `husky` ^9.1.7 - Git hooks
+- `nodemon` ^3.1.9 - Development server
+- `axios-mock-adapter` ^2.1.0 - API mocking for tests
 
 ## Common Patterns
 
 ### Error Handling
-- Centralized error handling in `helper/error.js`
-- Axios error interception and formatting
-- User-friendly error messages with suggestions
+- **Centralized Handling**: Error processing in `helper/error.js`
+- **Axios Interceptors**: Automatic HTTP error handling and formatting
+- **User-friendly Messages**: Clear error messages with actionable suggestions
+- **Graceful Degradation**: Fallback behaviors for failed operations
 
 ### Async Operations
-- Consistent async/await usage
-- Promise-based API calls
-- Proper error propagation
+- **Consistent Patterns**: async/await usage throughout
+- **Promise Chains**: Proper error propagation in API calls
+- **Timeout Handling**: Appropriate timeouts for network operations
+- **Progress Indicators**: Visual feedback for long-running operations
 
 ### User Interaction
-- Interactive prompts using @inquirer/prompts
-- Progress indicators for long operations
-- Color-coded output using chalk
+- **Interactive Prompts**: Rich prompts using @inquirer/prompts
+- **Search Functionality**: Searchable selections for integrations and groups
+- **Validation**: Real-time input validation with helpful messages
+- **Color-coded Output**: Intuitive color coding using chalk
+- **Progress Feedback**: Visual indicators for operations
 
 ### File Operations
-- Safe JSON parsing with error handling
-- Atomic file operations
-- Directory existence checking
+- **Safe JSON Parsing**: Error handling for malformed JSON
+- **Atomic Operations**: Safe file write operations
+- **Directory Management**: Recursive directory creation and validation
+- **Path Resolution**: Flexible path handling with validation
 
 ## Configuration
 
 ### Schema Templates
-Integration schemas are generated from templates in `templates/schemas.js`:
-- **Authentication**: API key-based authentication
-- **Base**: Core integration configuration
-- **Webhook**: Trigger configuration
-- **Resource**: Resource-specific operations
+Integration schemas generated from templates in `templates/`:
+- **Authentication**: API key-based authentication configuration
+- **Base**: Core integration configuration and parameters
+- **Webhook**: Trigger configuration for CloudTrigger integrations
+- **Component Schemas**: Reusable component schema templates
+- **Resource**: Resource-specific operations and parameters
 
-### Environment Variables
-- Environment selection stored in secure storage
-- API endpoints configured per environment
-- OAuth client IDs per environment
+
 
 ## Security Considerations
 
 ### Credential Storage
-- Secure token storage using keytar (OS keychain)
-- No plaintext credential storage
-- Automatic token cleanup on logout
+- **OS Integration**: Native keychain integration via keytar
+- **No Plaintext Storage**: All tokens encrypted in OS keychain
+- **Automatic Cleanup**: Token removal on logout
 
 ### API Security
-- OAuth 2.0 authentication flow
-- Bearer token authentication
-- Environment-specific API endpoints
+- **OAuth 2.0 Flow**: Industry-standard authentication
+- **Bearer Token**: Secure API authentication
+- **Token Refresh**: Automatic token lifecycle management
 
 ### Input Validation
-- Schema validation for all integration files
-- SVG file validation for icons
-- Input sanitization for user prompts
+- **Schema Validation**: Comprehensive validation for all integration files
+- **File Type Validation**: SVG file validation for icons
+- **Input Sanitization**: Proper sanitization for user inputs
+- **Path Validation**: Security checks for file paths
 
 ## Troubleshooting
 
 ### Common Issues
-1. **Authentication Errors**: Check network connectivity and credentials
-2. **Validation Errors**: Ensure all required schema fields are present
-3. **File System Errors**: Verify file permissions and paths
-4. **API Errors**: Check environment configuration and network
+1. **Authentication Errors**:
+   - Check network connectivity
+   - Clear and re-authenticate: `boltic logout && boltic login`
+
+2. **Validation Errors**:
+   - Use `--verbose` flag for detailed error information
+   - Check schema format and required fields
+   - Validate trigger_type values ("CloudTrigger" or null)
+
+3. **File System Errors**:
+   - Verify file permissions and paths
+   - Check directory existence
+   - Use `--path` flag to specify correct directory
+
+4. **API Errors**:
+   - Verify network connectivity
+   - Use `--verbose` flag for detailed API logs
 
 ### Debug Mode
-Use `--verbose` flag for detailed logging:
+Enhanced debugging with `--verbose` flag:
 ```bash
 boltic --verbose integration create
+boltic --verbose integration sync
+boltic --verbose login
 ```
 
-### Log Files
-- API calls logged in verbose mode
-- Error stack traces available in debug mode
-- Progress indicators for long operations
+### Command-specific Help
+```bash
+boltic help                    # General help
+boltic integration help        # Integration commands help
+```
 
 ## Contributing
 
 ### Code Style
-- ES6+ modules with import/export
-- Async/await for asynchronous operations
-- Functional programming patterns where applicable
-- Comprehensive error handling
+- **Modern JavaScript**: ES6+ modules with import/export
+- **Async Patterns**: Consistent async/await for asynchronous operations
+- **Functional Approach**: Functional programming patterns where applicable
+- **Error Handling**: Comprehensive error handling and user feedback
 
 ### Testing Requirements
-- Unit tests for all new features
-- Integration tests for API calls
-- Mocking external dependencies
-- Minimum 95% code coverage
+- **Unit Tests**: Comprehensive unit tests for all features
+- **Integration Tests**: End-to-end testing for API interactions
+- **Mocking**: Proper mocking of external dependencies
+- **Coverage**: Maintain 95%+ code coverage
 
-### Documentation
-- JSDoc comments for complex functions
-- README updates for new features
-- Schema documentation for integration formats
-- API documentation for external integrations
+### Documentation Standards
+- **JSDoc**: Comments for complex functions
+- **README Updates**: Keep documentation current with features
+- **Schema Documentation**: Document integration schema formats
+- **API Documentation**: Maintain API integration examples
 
 ## Integration Schema Format
+
+### Spec.json Format
+```json
+{
+  "id": "integration-uuid",
+  "name": "Integration Name",
+  "description": {
+    "integration": "Activity description",
+    "trigger": "Trigger description"
+  },
+  "icon": "https://cloud-url/icon.svg",
+  "activity_type": "customActivity",
+  "trigger_type": "CloudTrigger",
+  "meta": {
+    "ai_description": {
+      "integration": "AI-friendly activity description",
+      "trigger": "AI-friendly trigger description"
+    }
+  }
+}
+```
 
 ### Base Schema Structure
 ```json
@@ -250,7 +313,7 @@ boltic --verbose integration create
           {
             "value": "users",
             "label": "Users",
-            "description": "Manage users"
+            "description": "Manage user resources"
           }
         ]
       }
@@ -270,7 +333,7 @@ boltic --verbose integration create
           {
             "value": "users.list",
             "label": "List Users",
-            "description": "List all users"
+            "description": "Retrieve all users"
           }
         ]
       }
@@ -278,18 +341,27 @@ boltic --verbose integration create
   ],
   "list": {
     "parameters": [],
-    "definition": {}
+    "definition": {
+      "response_schema": {},
+      "request_schema": {}
+    }
   }
 }
 ```
 
-### Spec.json Format
+### Authentication Schema
 ```json
 {
-  "name": "Integration Name",
-  "activity_type": "customActivity",
-  "trigger_type": "webhook" // optional
+  "parameters": [
+    {
+      "name": "api_key",
+      "type": "string",
+      "required": true,
+      "label": "API Key",
+      "description": "Your API key for authentication"
+    }
+  ]
 }
 ```
 
-This documentation provides a comprehensive guide for AI assistants working with the Boltic CLI codebase, covering architecture, features, development practices, and troubleshooting procedures.
+This documentation provides a comprehensive guide for AI assistants working with the Boltic CLI codebase, covering current architecture, features, development practices, and troubleshooting procedures.
