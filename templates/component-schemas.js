@@ -155,6 +155,7 @@ const checkbox = {
 		displayName: "Name",
 		displayType: "checkbox",
 		description: "Checkbox input",
+		placeholder: "Checkbox",
 		value: false,
 		readOnly: false,
 		isDisabled: false,
@@ -300,6 +301,7 @@ const accordion = {
 		displayName: "Name",
 		displayType: "accordion",
 		description: "Collapsible content section",
+		placeholder: "Checkbox",
 		expanded: false,
 		children: [],
 		htmlProps: {
@@ -378,6 +380,7 @@ const toggle = {
 		displayName: "Name",
 		displayType: "toggle",
 		description: "Toggle switch",
+		placeholder: "Toggle switch",
 		value: false,
 		readOnly: false,
 		isDisabled: false,
@@ -760,6 +763,7 @@ const switchControl = {
 		displayName: "Name",
 		displayType: "switch",
 		description: "Switch toggle",
+		placeholder: "Switch toggle",
 		value: false,
 		readOnly: false,
 		htmlProps: {
@@ -867,6 +871,7 @@ const keyvalue = {
 		displayName: "Name",
 		displayType: "keyvalue",
 		description: "Key-value pairs",
+		placeholder: "Key-value pairs",
 		value: {},
 		readOnly: false,
 		isDisabled: false,
@@ -932,6 +937,7 @@ const datetime = {
 	meta: {
 		displayName: "Enter Date with Start Time",
 		description: "Please enter date and start time",
+		placeholder: "Key-value pairs",
 		displayType: "datetime",
 		value: "2024-02-14",
 		validation: {
