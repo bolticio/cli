@@ -110,6 +110,7 @@ const select = {
 			url: "/api/options",
 			labelKey: "label",
 			valueKey: "value",
+			condition: "{{sample-condition}}",
 			body: {
 				secret: "secret",
 				loadOptionsMethod: "get",
@@ -199,6 +200,7 @@ const autocomplete = {
 			url: "/api/autocomplete",
 			labelKey: "label",
 			valueKey: "value",
+			condition: "{{sample-condition}}",
 			body: {},
 			multiple: false,
 			limitTags: 3,
@@ -675,6 +677,7 @@ const multiselect = {
 			url: "/api/options",
 			labelKey: "label",
 			valueKey: "value",
+			condition: "{{sample-condition}}",
 			body: {},
 		},
 		validation: {
