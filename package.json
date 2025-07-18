@@ -1,41 +1,113 @@
 {
 	"name": "@boltic/cli",
 	"version": "1.0.10",
-	"description": "A powerful CLI tool for managing Boltic Workflow integrations",
+	"description": "A powerful CLI tool for managing Boltic Workflow integrations - create, sync, test, and publish integrations with ease",
 	"main": "index.js",
 	"bin": {
 		"boltic": "index.js"
 	},
-	"author": "Ahmed Sakri <ahmedsakri@gofynd.com>",
+	"engines": {
+		"node": ">=18.0.0",
+		"npm": ">=8.0.0"
+	},
+	"files": [
+		"index.js",
+		"cli.js",
+		"commands/",
+		"api/",
+		"helper/",
+		"utils/",
+		"config/",
+		"templates/",
+		"README.md",
+		"LICENSE"
+	],
+	"author": {
+		"name": "Ahmed Sakri",
+		"email": "ahmedsakri@gofynd.com",
+		"url": "https://github.com/ahmedsakri"
+	},
+	"contributors": [
+		{
+			"name": "Boltic Team",
+			"url": "https://www.boltic.io"
+		}
+	],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/bolticio/cli.git"
+		"url": "https://github.com/bolticio/cli.git",
+		"directory": "."
 	},
 	"homepage": "https://github.com/bolticio/cli#readme",
 	"bugs": {
-		"url": "https://github.com/bolticio/cli/issues"
+		"url": "https://github.com/bolticio/cli/issues",
+		"email": "support@boltic.io"
 	},
+	"funding": [
+		{
+			"type": "github",
+			"url": "https://github.com/sponsors/bolticio"
+		}
+	],
 	"scripts": {
 		"start": "node index.js",
 		"dev": "nodemon index.js",
 		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:coverage": "jest --coverage",
 		"prepare": "husky",
-		"lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+		"lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+		"lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"preversion": "npm run lint && npm run test",
+		"postversion": "git push && git push --tags",
+		"prepublishOnly": "npm run lint && npm run test"
 	},
 	"keywords": [
 		"cli",
 		"boltic",
-		"developer-tools",
-		"integration",
 		"workflow",
+		"integration",
 		"automation",
-		"fynd"
+		"developer-tools",
+		"fynd",
+		"integration-builder",
+		"workflow-automation",
+		"api-integration",
+		"no-code",
+		"low-code",
+		"enterprise",
+		"saas",
+		"productivity",
+		"development-tools",
+		"command-line",
+		"javascript",
+		"nodejs"
 	],
 	"license": "ISC",
 	"type": "module",
 	"publishConfig": {
 		"access": "public",
 		"registry": "https://registry.npmjs.org/"
+	},
+	"badges": {
+		"npm": "https://img.shields.io/npm/v/@boltic/cli",
+		"downloads": "https://img.shields.io/npm/dm/@boltic/cli",
+		"license": "https://img.shields.io/npm/l/@boltic/cli",
+		"build": "https://github.com/bolticio/cli/actions/workflows/npm-publish.yml/badge.svg",
+		"coverage": "https://img.shields.io/codecov/c/github/bolticio/cli"
+	},
+	"social": {
+		"website": "https://boltic.io",
+		"documentation": "https://docs.boltic.io",
+		"twitter": "https://twitter.com/bolticHQ",
+		"blog": "https://boltic.io/blog"
+	},
+	"config": {
+		"commitizen": {
+			"path": "./node_modules/cz-conventional-changelog"
+		}
 	},
 	"dependencies": {
 		"@inquirer/prompts": "^7.3.2",
@@ -62,5 +134,17 @@
 		"lint-staged": "^15.4.3",
 		"nodemon": "^3.1.9",
 		"prettier": "^3.5.3"
-	}
+	},
+	"peerDependencies": {
+		"node": ">=18.0.0"
+	},
+	"os": [
+		"darwin",
+		"linux",
+		"win32"
+	],
+	"cpu": [
+		"x64",
+		"arm64"
+	]
 }
