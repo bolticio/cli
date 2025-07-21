@@ -111,6 +111,7 @@ const select = {
 			labelKey: "label",
 			valueKey: "value",
 			condition: "{{sample-condition}}",
+			loadDynamicParameters: false,
 			body: {
 				secret: "secret",
 				loadOptionsMethod: "get",
@@ -205,6 +206,7 @@ const autocomplete = {
 			body: {},
 			multiple: false,
 			limitTags: 3,
+			loadDynamicParameters: false,
 		},
 		htmlProps: {
 			allowDynamic: false,
@@ -310,8 +312,14 @@ const accordion = {
 			subHeaderVariant: "h5",
 		},
 		dependencies: {
-			logic: "OR",
-			conditions: [],
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
 		},
 	},
 };
@@ -370,6 +378,16 @@ const textarea = {
 			maxDetail: {
 				errorMsg: "Text too long",
 			},
+		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
 		},
 	},
 };
@@ -478,6 +496,16 @@ const array = {
 				errorMsg: "Too many items",
 			},
 		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
+		},
 	},
 };
 
@@ -511,6 +539,16 @@ const object = {
 				errorMsg: "Object is required",
 			},
 		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
+		},
 	},
 };
 
@@ -537,6 +575,16 @@ const code = {
 			requiredDetail: {
 				errorMsg: "Code is required",
 			},
+		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
 		},
 	},
 };
@@ -565,6 +613,16 @@ const slider = {
 			infoDetail: {
 				infoMsg: "Choose a value between 10 and 90",
 			},
+		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
 		},
 	},
 };
@@ -609,6 +667,16 @@ const hidden = {
 		displayType: "hidden",
 		value: "",
 		options: [],
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
+		},
 	},
 };
 
@@ -658,6 +726,16 @@ const divider = {
 			variant: "middle",
 			orientation: "horizontal",
 		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
+		},
 	},
 };
 
@@ -685,6 +763,7 @@ const multiselect = {
 			valueKey: "value",
 			condition: "{{sample-condition}}",
 			body: {},
+			loadDynamicParameters: false,
 		},
 		validation: {
 			required: false,
@@ -862,6 +941,16 @@ const phone = {
 				errorMsg: "Must be a valid phone number",
 			},
 		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
+		},
 	},
 };
 
@@ -911,6 +1000,16 @@ const keyvalue = {
 				errorMsg: "Too many key-value pairs",
 			},
 		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
+		},
 	},
 };
 
@@ -928,6 +1027,16 @@ const button = {
 			variant: "contained",
 			size: "medium",
 			// ...any other prop will be added to button component
+		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
 		},
 	},
 };
@@ -952,6 +1061,16 @@ const datetime = {
 				minutes: 5,
 				seconds: 5,
 			},
+		},
+		dependencies: {
+			logic: "AND",
+			conditions: [
+				{
+					field: "fieldName",
+					operator: "EQUALS",
+					value: "expectedValue",
+				},
+			],
 		},
 	},
 };
