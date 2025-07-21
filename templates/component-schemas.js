@@ -111,7 +111,6 @@ const select = {
 			labelKey: "label",
 			valueKey: "value",
 			condition: "{{sample-condition}}",
-			loadDynamicParameters: false,
 			body: {
 				secret: "secret",
 				loadOptionsMethod: "get",
@@ -119,6 +118,7 @@ const select = {
 				operation: "operation",
 			},
 		},
+		loadDynamicParameters: false,
 		displayProps: { loading: false },
 		validation: {
 			required: false,
@@ -206,12 +206,12 @@ const autocomplete = {
 			body: {},
 			multiple: false,
 			limitTags: 3,
-			loadDynamicParameters: false,
 		},
 		htmlProps: {
 			allowDynamic: false,
 			showAddNew: false,
 		},
+		loadDynamicParameters: false,
 		validation: {
 			required: false,
 			requiredDetail: {
@@ -763,8 +763,8 @@ const multiselect = {
 			valueKey: "value",
 			condition: "{{sample-condition}}",
 			body: {},
-			loadDynamicParameters: false,
 		},
+		loadDynamicParameters: false,
 		validation: {
 			required: false,
 			requiredDetail: {
