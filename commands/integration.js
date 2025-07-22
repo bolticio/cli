@@ -1,8 +1,8 @@
 import { confirm, input, search } from "@inquirer/prompts";
 import chalk from "chalk";
+import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
 
 import {
 	editIntegration,
@@ -170,6 +170,23 @@ async function handleSync(args) {
 			return;
 		}
 
+		const isPublished = await getIntegrationById(
+			apiUrl,
+			token,
+			accountId,
+			session,
+			specContent.id
+		);
+
+		if (isPublished.status === "published") {
+			console.error(
+				chalk.red(
+					`Error: Integration is already published. You cannot sync a published integration, please use the "edit" command to create a copy of the integration.`
+				)
+			);
+			return;
+		}
+
 		const updatedIntegration = await updateIntegration(
 			apiUrl,
 			token,
@@ -284,6 +301,23 @@ async function handleSubmit(args) {
 			console.error(
 				chalk.red(
 					`Error: Invalid trigger_type "${specContent.trigger_type}". It should be "CloudTrigger" or null.`
+				)
+			);
+			return;
+		}
+
+		const isPublished = await getIntegrationById(
+			apiUrl,
+			token,
+			accountId,
+			session,
+			specContent.id
+		);
+
+		if (isPublished.status === "published") {
+			console.error(
+				chalk.red(
+					`Error: Integration is already published. You cannot submit a published integration, please use the "edit" command to create a copy of the integration.`
 				)
 			);
 			return;

@@ -640,6 +640,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should sync integration successfully", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -656,6 +661,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle validation failure", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(
 				validationHelper.validateIntegrationSchemas
 			).mockReturnValue({
@@ -674,6 +684,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle validation failure with array errors", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(
 				validationHelper.validateIntegrationSchemas
 			).mockReturnValue({
@@ -703,6 +718,11 @@ describe("Integration Commands", () => {
 					name: "TestIntegration",
 				})
 			);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -739,6 +759,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle sync failure", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -754,6 +779,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should skip validation with --no-verify flag", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -776,6 +806,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should skip validation with --no-verify flag even when validation would fail", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(
 				validationHelper.validateIntegrationSchemas
 			).mockReturnValue({
@@ -812,6 +847,11 @@ describe("Integration Commands", () => {
 					name: "TestIntegration",
 				})
 			);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -858,6 +898,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should submit integration successfully", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -877,6 +922,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle submit failure", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -892,6 +942,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle publish command with deprecation warning", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -911,6 +966,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should skip validation with --no-verify flag in submit command", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -937,6 +997,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should skip validation with --no-verify flag in publish command", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -963,6 +1028,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should skip validation with --no-verify flag even when validation would fail in submit", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(
 				validationHelper.validateIntegrationSchemas
 			).mockReturnValue({
@@ -1534,6 +1604,11 @@ describe("Integration Commands", () => {
 				})
 			);
 			fs.readdirSync = jest.fn().mockReturnValue([]);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(
 				validationHelper.validateIntegrationSchemas
 			).mockReturnValue({
@@ -1559,6 +1634,11 @@ describe("Integration Commands", () => {
 				})
 			);
 			fs.readdirSync = jest.fn().mockReturnValue([]);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(
 				validationHelper.validateIntegrationSchemas
 			).mockReturnValue({
@@ -1590,6 +1670,11 @@ describe("Integration Commands", () => {
 					"readme.txt",
 					"config.yaml",
 				]);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(
 				validationHelper.validateIntegrationSchemas
 			).mockReturnValue({
@@ -1639,6 +1724,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle integration with null sync result", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -1652,6 +1742,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle integration with sync result containing message", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -1665,6 +1760,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle submit sync failure", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -1680,6 +1780,11 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle publish sync failure (deprecated)", async () => {
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
@@ -1775,6 +1880,11 @@ describe("Integration Commands", () => {
 				})
 			);
 			fs.existsSync = jest.fn().mockReturnValue(true);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
 			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
 				true
 			);
