@@ -23,7 +23,7 @@ import {
 } from "../helper/folder.js";
 
 import { getCurrentEnv } from "../helper/env.js";
-import { pickSvgFile } from "../utils/integration.js";
+import { getSvgFilePath } from "../utils/integration.js";
 
 // Define commands and their descriptions
 const commands = {
@@ -514,7 +514,7 @@ async function handleCreate() {
 			transform: (input) => input.trim().replace(/\s+/g, "_"),
 		});
 
-		const iconPath = await pickSvgFile();
+		const iconPath = await getSvgFilePath();
 
 		if (!iconPath || !iconPath?.endsWith(".svg")) {
 			console.log(

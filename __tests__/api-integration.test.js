@@ -220,6 +220,20 @@ describe("Integration API", () => {
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.listAllIntegrations(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
 	});
 
 	describe("saveIntegration", () => {
@@ -269,6 +283,21 @@ describe("Integration API", () => {
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.saveIntegration(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.integration
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
 	});
 
 	describe("editIntegration", () => {
@@ -317,6 +346,21 @@ describe("Integration API", () => {
 			);
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
+		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.editIntegration(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.payload
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
 		});
 	});
 
@@ -371,6 +415,21 @@ describe("Integration API", () => {
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.updateIntegration(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.integration
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
 	});
 
 	describe("getIntegrationById", () => {
@@ -418,6 +477,21 @@ describe("Integration API", () => {
 			);
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
+		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.getIntegrationById(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.integrationId
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
 		});
 	});
 
@@ -468,6 +542,21 @@ describe("Integration API", () => {
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.syncIntegration(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.integration
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
 	});
 
 	describe("sendIntegrationForReview", () => {
@@ -516,6 +605,21 @@ describe("Integration API", () => {
 			);
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
+		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.sendIntegrationForReview(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.integration
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
 		});
 	});
 
@@ -566,6 +670,21 @@ describe("Integration API", () => {
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.purgeCache(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.integration
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
 	});
 
 	describe("pullIntegration", () => {
@@ -613,6 +732,21 @@ describe("Integration API", () => {
 			);
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
+		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.pullIntegration(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.id
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
 		});
 	});
 
@@ -760,6 +894,21 @@ describe("Integration API", () => {
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.getAuthenticationByIntegrationId(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.integrationId
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
 	});
 
 	describe("getWebhooksByIntegrationId", () => {
@@ -810,6 +959,21 @@ describe("Integration API", () => {
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.getWebhooksByIntegrationId(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.accountId,
+				validParams.session,
+				validParams.integrationId
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
 	});
 
 	describe("getConfigurationByIntegrationId", () => {
@@ -857,6 +1021,21 @@ describe("Integration API", () => {
 			);
 
 			expect(processExitSpy).toHaveBeenCalledWith(1);
+		});
+
+		it("should handle API error", async () => {
+			const error = new Error("API Error");
+			mockAxios.mockRejectedValue(error);
+
+			await integrationApi.getConfigurationByIntegrationId(
+				validParams.apiUrl,
+				validParams.token,
+				validParams.session,
+				validParams.accountId,
+				validParams.integrationId
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
 		});
 	});
 });
