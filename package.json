@@ -1,6 +1,6 @@
 {
 	"name": "@boltic/cli",
-	"version": "1.0.17",
+	"version": "1.0.18",
 	"description": "A powerful CLI tool for managing Boltic Workflow integrations - create, sync, test, and publish integrations with ease",
 	"main": "index.js",
 	"bin": {
