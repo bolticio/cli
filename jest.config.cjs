@@ -1,5 +1,3 @@
-const stripAnsi = require("strip-ansi");
-
 module.exports = {
 	testEnvironment: "node",
 	transformIgnorePatterns: ["node_modules/(?!@inquirer/prompts)/"],

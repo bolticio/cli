@@ -1,5 +1,6 @@
 import { confirm, input, search } from "@inquirer/prompts";
 import { jest } from "@jest/globals";
+import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import * as integrationApi from "../api/integration.js";
@@ -12,6 +13,7 @@ import * as integrationUtils from "../utils/integration.js";
 // Mock all dependencies
 jest.mock("fs");
 jest.mock("path");
+jest.mock("child_process");
 jest.mock("../api/integration.js");
 jest.mock("../helper/env.js");
 jest.mock("../helper/folder.js");
@@ -72,7 +74,7 @@ describe("Integration Commands", () => {
 				{ id: "1", name: "Test Group" },
 			]);
 			jest.mocked(input).mockResolvedValue("TestIntegration");
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -101,7 +103,7 @@ describe("Integration Commands", () => {
 
 		it("should create integration successfully", async () => {
 			jest.mocked(input).mockResolvedValue("TestIntegration");
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -159,7 +161,7 @@ describe("Integration Commands", () => {
 
 		it("should validate integration name", async () => {
 			input.mockResolvedValue("TestIntegration");
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -198,7 +200,7 @@ describe("Integration Commands", () => {
 				callCount++;
 				return Promise.resolve("TestIntegration");
 			});
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -233,7 +235,7 @@ describe("Integration Commands", () => {
 				callCount++;
 				return Promise.resolve("TestIntegration");
 			});
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -270,7 +272,7 @@ describe("Integration Commands", () => {
 				callCount++;
 				return Promise.resolve("TestIntegration");
 			});
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -312,7 +314,7 @@ describe("Integration Commands", () => {
 				callCount++;
 				return Promise.resolve("TestIntegration");
 			});
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -338,7 +340,7 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle invalid SVG file", async () => {
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/invalid.txt"
 			);
 
@@ -353,7 +355,7 @@ describe("Integration Commands", () => {
 
 		it("should handle icon upload failure", async () => {
 			input.mockResolvedValue("TestIntegration");
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockRejectedValue(
@@ -369,7 +371,7 @@ describe("Integration Commands", () => {
 
 		it("should require at least one activity type", async () => {
 			input.mockResolvedValue("TestIntegration");
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -389,7 +391,7 @@ describe("Integration Commands", () => {
 
 		it("should handle integration creation failure", async () => {
 			input.mockResolvedValue("TestIntegration");
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -421,7 +423,7 @@ describe("Integration Commands", () => {
 
 		it("should handle invalid SVG file path (double check)", async () => {
 			input.mockResolvedValue("TestIntegration");
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/invalid.txt"
 			);
 
@@ -436,15 +438,13 @@ describe("Integration Commands", () => {
 
 		it("should validate activity description when isActivity is true", async () => {
 			let activityValidateFunction;
-			let callCount = 0;
 			input.mockImplementation((options) => {
 				if (options.message === "Workflow Activity Description:") {
 					activityValidateFunction = options.validate;
 				}
-				callCount++;
 				return Promise.resolve("Test Activity Description");
 			});
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -474,15 +474,13 @@ describe("Integration Commands", () => {
 
 		it("should validate activity AI description when isActivity is true", async () => {
 			let activityAiValidateFunction;
-			let callCount = 0;
 			input.mockImplementation((options) => {
 				if (options.message === "Workflow Activity AI Description:") {
 					activityAiValidateFunction = options.validate;
 				}
-				callCount++;
 				return Promise.resolve("Test AI Description");
 			});
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -514,15 +512,13 @@ describe("Integration Commands", () => {
 
 		it("should validate trigger description when isTrigger is true", async () => {
 			let triggerValidateFunction;
-			let callCount = 0;
 			input.mockImplementation((options) => {
 				if (options.message === "Workflow Trigger Description:") {
 					triggerValidateFunction = options.validate;
 				}
-				callCount++;
 				return Promise.resolve("Test Trigger Description");
 			});
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -554,15 +550,13 @@ describe("Integration Commands", () => {
 
 		it("should validate trigger AI description when isTrigger is true", async () => {
 			let triggerAiValidateFunction;
-			let callCount = 0;
 			input.mockImplementation((options) => {
 				if (options.message === "Workflow Trigger AI Description:") {
 					triggerAiValidateFunction = options.validate;
 				}
-				callCount++;
 				return Promise.resolve("Test Trigger AI Description");
 			});
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -595,7 +589,7 @@ describe("Integration Commands", () => {
 		it("should handle search filter in integration group selection", async () => {
 			let searchSourceFunction;
 			input.mockResolvedValue("TestIntegration");
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 			jest.mocked(integrationApi.uploadFileToCloud).mockResolvedValue({
@@ -1805,6 +1799,7 @@ describe("Integration Commands", () => {
 		});
 
 		it("should handle sync with invalid trigger_type", async () => {
+			fs.existsSync = jest.fn().mockReturnValue(true);
 			fs.readFileSync = jest.fn().mockReturnValue(
 				JSON.stringify({
 					id: "test-id",
@@ -1819,6 +1814,93 @@ describe("Integration Commands", () => {
 				expect.stringContaining(
 					'Error: Invalid trigger_type "InvalidTrigger"'
 				)
+			);
+		});
+
+		it("should handle sync with published integration error", async () => {
+			fs.existsSync = jest.fn().mockReturnValue(true);
+			fs.readFileSync = jest.fn().mockReturnValue(
+				JSON.stringify({
+					id: "test-id",
+					name: "TestIntegration",
+					description: "Test description",
+				})
+			);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "published",
+				id: "test-id",
+				name: "TestIntegration",
+			});
+
+			await IntegrationCommands.execute(["sync"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Error: Integration is already published"
+				)
+			);
+		});
+
+		it("should handle sync when updateIntegration fails", async () => {
+			fs.existsSync = jest.fn().mockReturnValue(true);
+			fs.readFileSync = jest.fn().mockReturnValue(
+				JSON.stringify({
+					id: "test-id",
+					name: "TestIntegration",
+					description: "Test description",
+				})
+			);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				null
+			);
+			jest.mocked(
+				validationHelper.validateIntegrationSchemas
+			).mockReturnValue({
+				success: true,
+			});
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(true);
+			jest.mocked(integrationApi.purgeCache).mockResolvedValue(true);
+
+			await IntegrationCommands.execute(["sync"]);
+
+			expect(integrationApi.updateIntegration).toHaveBeenCalled();
+			expect(integrationApi.syncIntegration).toHaveBeenCalled();
+		});
+
+		it("should handle sync failure with specific error message", async () => {
+			fs.existsSync = jest.fn().mockReturnValue(true);
+			fs.readFileSync = jest.fn().mockReturnValue(
+				JSON.stringify({
+					id: "test-id",
+					name: "TestIntegration",
+					description: "Test description",
+				})
+			);
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				status: "draft",
+				id: "test-id",
+				name: "TestIntegration",
+			});
+			jest.mocked(integrationApi.updateIntegration).mockResolvedValue(
+				true
+			);
+			jest.mocked(
+				validationHelper.validateIntegrationSchemas
+			).mockReturnValue({
+				success: true,
+			});
+			// Return null/false to trigger the error path
+			jest.mocked(integrationApi.syncIntegration).mockResolvedValue(null);
+
+			await IntegrationCommands.execute(["sync"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Failed to syncing integration")
 			);
 		});
 
@@ -1920,7 +2002,9 @@ describe("Integration Commands", () => {
 			input.mockResolvedValueOnce("ValidIntegrationName");
 			search.mockResolvedValueOnce("1");
 			confirm.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(null);
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
+				null
+			);
 
 			await IntegrationCommands.execute(["create"]);
 
@@ -1942,7 +2026,7 @@ describe("Integration Commands", () => {
 			input.mockResolvedValueOnce("ValidIntegrationName");
 			search.mockResolvedValueOnce("1");
 			confirm.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"icon.png"
 			);
 
@@ -2023,7 +2107,7 @@ describe("Integration Commands", () => {
 			input.mockResolvedValueOnce("Test trigger AI description");
 
 			// Mock SVG file selection to return a valid SVG path
-			jest.mocked(integrationUtils.pickSvgFile).mockResolvedValue(
+			jest.mocked(integrationUtils.getSvgFilePath).mockResolvedValue(
 				"/path/to/icon.svg"
 			);
 
@@ -2169,6 +2253,130 @@ describe("Integration Commands", () => {
 			await IntegrationCommands.execute(["edit"]);
 
 			expect(search).toHaveBeenCalled();
+		});
+	});
+
+	describe("handleTest", () => {
+		beforeEach(() => {
+			// Mock path.join to return predictable paths
+			path.join = jest
+				.fn()
+				.mockImplementation((...args) => args.join("/"));
+		});
+
+		it("should run integration tests successfully", async () => {
+			fs.existsSync = jest.fn().mockImplementation((pathArg) => {
+				if (pathArg && pathArg.endsWith("spec.json")) return true;
+				if (pathArg && pathArg.endsWith("__tests__")) return true;
+				return false;
+			});
+
+			jest.mocked(execSync).mockImplementation(() => {});
+
+			await IntegrationCommands.execute(["test"]);
+
+			expect(execSync).toHaveBeenCalledWith(
+				expect.stringContaining("npx jest"),
+				expect.objectContaining({
+					stdio: "inherit",
+					cwd: process.cwd(),
+				})
+			);
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("All tests completed successfully!")
+			);
+		});
+
+		it("should handle missing spec.json in test command", async () => {
+			fs.existsSync = jest.fn().mockImplementation((pathArg) => {
+				if (pathArg && pathArg.endsWith("spec.json")) return false;
+				return true;
+			});
+
+			await IntegrationCommands.execute(["test"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Error: No spec.json file found in the current directory"
+				)
+			);
+		});
+
+		it("should handle missing __tests__ directory", async () => {
+			fs.existsSync = jest.fn().mockImplementation((pathArg) => {
+				if (pathArg && pathArg.endsWith("spec.json")) return true;
+				if (pathArg && pathArg.endsWith("__tests__")) return false;
+				return true;
+			});
+
+			await IntegrationCommands.execute(["test"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Error: No __tests__ directory found")
+			);
+		});
+
+		it("should handle test failures", async () => {
+			fs.existsSync = jest.fn().mockImplementation((pathArg) => {
+				if (pathArg && pathArg.endsWith("spec.json")) return true;
+				if (pathArg && pathArg.endsWith("__tests__")) return true;
+				return false;
+			});
+
+			jest.mocked(execSync).mockImplementation(() => {
+				throw new Error("Test failed");
+			});
+
+			const mockProcessExit = jest
+				.spyOn(process, "exit")
+				.mockImplementation(() => {});
+
+			await IntegrationCommands.execute(["test"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Tests failed with errors:")
+			);
+			expect(mockProcessExit).toHaveBeenCalledWith(1);
+
+			mockProcessExit.mockRestore();
+		});
+
+		it("should handle test with custom path", async () => {
+			const customPath = "/custom/test/path";
+			fs.existsSync = jest.fn().mockImplementation((pathArg) => {
+				if (pathArg === customPath) return true;
+				if (pathArg && pathArg.endsWith("spec.json")) return true;
+				if (pathArg && pathArg.endsWith("__tests__")) return true;
+				return false;
+			});
+
+			jest.mocked(execSync).mockImplementation(() => {});
+
+			await IntegrationCommands.execute(["test", "--path", customPath]);
+
+			expect(execSync).toHaveBeenCalledWith(
+				expect.stringContaining("npx jest"),
+				expect.objectContaining({
+					stdio: "inherit",
+					cwd: customPath,
+				})
+			);
+		});
+
+		it("should handle invalid custom path in test command", async () => {
+			const invalidPath = "/invalid/path";
+			fs.existsSync = jest.fn().mockImplementation((pathArg) => {
+				if (pathArg === invalidPath) return false;
+				return true;
+			});
+
+			await IntegrationCommands.execute(["test", "--path", invalidPath]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Error: The specified path does not exist"
+				)
+			);
 		});
 	});
 });
