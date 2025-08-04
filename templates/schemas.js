@@ -42,6 +42,20 @@ const authentication = {
 				},
 			},
 		],
+		validate: {
+			url: "https://test_url/events",
+			method: "get",
+			headers: {
+				Authorization: "Bearer {{secrets.api_key}}",
+			},
+			response: {
+				error: {
+					code: "{{response.status}}",
+					message: "{{response.data.error}}",
+				},
+				output: "{{response.data}}",
+			},
+		},
 	},
 };
 
