@@ -568,7 +568,7 @@ const code = {
 			showSuggestions: true,
 			showCopyToClipboard: true,
 			showHtmlPreview: false,
-			height: "200px",
+			height: "auto",
 		},
 		validation: {
 			required: false,
@@ -1026,7 +1026,14 @@ const button = {
 		htmlProps: {
 			variant: "contained",
 			size: "medium",
-			// ...any other prop will be added to button component
+			style: {
+				color: "inherit",
+				backgroundColor: "primary",
+				fontSize: "inherit",
+				fontWeight: "normal",
+				height: "auto",
+				padding: "inherit",
+			},
 		},
 		dependencies: {
 			logic: "AND",
