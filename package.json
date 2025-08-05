@@ -104,30 +104,30 @@
 		}
 	},
 	"dependencies": {
-		"@inquirer/prompts": "^7.3.2",
-		"axios": "^1.8.2",
-		"chalk": "^5.3.0",
+		"@inquirer/prompts": "^7.8.0",
+		"axios": "^1.11.0",
+		"chalk": "^5.5.0",
 		"keytar": "^7.9.0",
-		"open": "^10.1.0",
-		"uuid": "^11.1.0",
 		"lodash.isempty": "^4.4.0",
-		"jest": "^29.7.0"
+		"open": "^10.2.0",
+		"uuid": "^11.1.0"
 	},
 	"devDependencies": {
-		"@babel/core": "^7.26.9",
-		"@babel/preset-env": "^7.26.9",
-		"@commitlint/cli": "^19.7.1",
-		"@commitlint/config-conventional": "^19.7.1",
-		"@jest/globals": "^29.7.0",
+		"@babel/core": "^7.28.0",
+		"@babel/preset-env": "^7.28.0",
+		"@commitlint/cli": "^19.8.1",
+		"@commitlint/config-conventional": "^19.8.1",
+		"@jest/globals": "^30.0.5",
 		"axios-mock-adapter": "^2.1.0",
-		"babel-jest": "^29.7.0",
-		"eslint": "^9.21.0",
-		"eslint-config-prettier": "^10.0.2",
-		"eslint-plugin-prettier": "^5.2.3",
+		"babel-jest": "^30.0.5",
+		"eslint": "^9.32.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-prettier": "^5.5.3",
 		"husky": "^9.1.7",
-		"lint-staged": "^15.4.3",
-		"nodemon": "^3.1.9",
-		"prettier": "^3.5.3"
+		"jest": "^30.0.5",
+		"lint-staged": "^16.1.4",
+		"nodemon": "^3.1.10",
+		"prettier": "^3.6.2"
 	},
 	"peerDependencies": {
 		"node": ">=18.0.0"
