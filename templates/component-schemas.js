@@ -568,7 +568,7 @@ const code = {
 			showSuggestions: true,
 			showCopyToClipboard: true,
 			showHtmlPreview: false,
-			height: "200px",
+			height: "auto",
 		},
 		validation: {
 			required: false,
@@ -1027,12 +1027,12 @@ const button = {
 			variant: "contained",
 			size: "medium",
 			style: {
-				color: "#ffffff",
-				backgroundColor: "#ff592f",
-				fontSize: "14px",
-				fontWeight: 700,
-				height: "40px",
-				padding: "16px",
+				color: "inherit",
+				backgroundColor: "primary",
+				fontSize: "inherit",
+				fontWeight: "normal",
+				height: "auto",
+				padding: "inherit",
 			},
 		},
 		dependencies: {
