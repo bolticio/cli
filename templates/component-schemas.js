@@ -1026,7 +1026,14 @@ const button = {
 		htmlProps: {
 			variant: "contained",
 			size: "medium",
-			// ...any other prop will be added to button component
+			style: {
+				color: "#ffffff",
+				backgroundColor: "#ff592f",
+				fontSize: "14px",
+				fontWeight: 700,
+				height: "40px",
+				padding: "16px",
+			},
 		},
 		dependencies: {
 			logic: "AND",
