@@ -160,6 +160,17 @@ const checkbox = {
 		value: false,
 		readOnly: false,
 		isDisabled: false,
+		multiple: false,
+		options: [
+			{
+				label: "Option 1",
+				value: "option1",
+				description: "Description 1",
+			},
+		],
+		htmlProps: {
+			allowDynamic: false,
+		},
 		validation: {
 			required: false,
 			requiredDetail: {
