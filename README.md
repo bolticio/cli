@@ -94,7 +94,7 @@ npm install -g @boltic/cli
 ### Verify Installation
 
 ```bash
-boltic --version
+boltic version
 ```
 
 ---
