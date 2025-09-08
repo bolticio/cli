@@ -58,6 +58,7 @@ const number = {
 			showInfoIcon: false,
 			rightLabel: "",
 			rightLabelAlignment: "center",
+			allowDynamic: false,
 		},
 		validation: {
 			required: false,
@@ -451,6 +452,7 @@ const file = {
 			accept: "*/*",
 			maxSize: 52428800,
 			maxFiles: 1,
+			allowDynamic: false,
 			preview: true,
 		},
 		validation: {
@@ -707,6 +709,7 @@ const date = {
 			readOnly: false,
 			views: undefined,
 			timeSteps: { hours: 1, minutes: 5, seconds: 5 },
+			allowDynamic: false,
 		},
 		validation: {
 			required: false,
@@ -940,6 +943,7 @@ const phone = {
 			onlyCountries: [],
 			preferredCountries: ["US", "GB", "CA"],
 			continents: ["NA", "EU"],
+			allowDropdown: true,
 		},
 		validation: {
 			required: false,

@@ -478,7 +478,7 @@ boltic integration help
 boltic login help
 
 # Check CLI version
-boltic --version
+boltic version
 ```
 
 **External resources**:
@@ -516,7 +516,7 @@ npm --version
 npm install -g @boltic/cli@latest
 
 # Verify installation
-boltic --version
+boltic version
 ```
 
 #### 9. Emergency Recovery
@@ -540,7 +540,7 @@ boltic login
 1. Check the [FAQ](https://docs.boltic.io/faq)
 2. Search [existing issues](https://github.com/bolticio/cli/issues)
 3. Create a new issue with:
-    - CLI version (`boltic --version`)
+    - CLI version (`boltic version`)
     - Operating system
     - Node.js version
     - Complete error message
