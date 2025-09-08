@@ -943,7 +943,7 @@ const phone = {
 			onlyCountries: [],
 			preferredCountries: ["US", "GB", "CA"],
 			continents: ["NA", "EU"],
-			allowDropdown: true,
+			allowDynamic: true,
 		},
 		validation: {
 			required: false,
