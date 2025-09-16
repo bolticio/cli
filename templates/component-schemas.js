@@ -1038,6 +1038,12 @@ const button = {
 		value: "",
 		isDisabled: false,
 		readOnly: false,
+		validation: {
+			required: true,
+			requiredDetail: {
+				errorMsg: "Please connect with Asana first",
+			},
+		},
 		htmlProps: {
 			variant: "contained",
 			size: "medium",
