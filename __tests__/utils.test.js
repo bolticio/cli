@@ -265,7 +265,7 @@ describe("Utility Functions", () => {
 			const isValidIntegrationName = (name) => {
 				if (!name || name.length === 0) return false;
 				if (name.length > 50) return false;
-				return /^[a-zA-Z_]+$/.test(name.replace(/\s+/g, "_"));
+				return /^[a-zA-Z_.]+$/.test(name.replace(/\s+/g, "_"));
 			};
 
 			expect(isValidIntegrationName("MyIntegration")).toBe(true);

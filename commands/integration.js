@@ -499,15 +499,16 @@ async function handleCreate() {
 
 		// Prompt for integration details
 		const name = await input({
-			message: "Integration name (e.g., My_Integration):",
+			message:
+				"Integration name (e.g., My_Integration or My.Integration):",
 			validate: (input) => {
 				const formattedInput = input.trim().replace(/\s+/g, "_");
 
 				if (!formattedInput) return "Name is required";
 				if (formattedInput.length > 50)
 					return "Name cannot exceed 50 characters";
-				if (!/^[a-zA-Z_]+$/.test(formattedInput)) {
-					return "Name can only contain letters and underscores (no numbers or hyphens)";
+				if (!/^[a-zA-Z_.]+$/.test(formattedInput)) {
+					return "Name can only contain letters, underscores, and periods (no numbers or hyphens)";
 				}
 				return true;
 			},

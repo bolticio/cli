@@ -193,7 +193,7 @@ describe("Integration Commands", () => {
 				if (
 					callCount === 0 &&
 					options.message ===
-						"Integration name (e.g., My_Integration):"
+						"Integration name (e.g., My_Integration or My.Integration):"
 				) {
 					nameValidateFunction = options.validate;
 				}
@@ -228,7 +228,7 @@ describe("Integration Commands", () => {
 				if (
 					callCount === 0 &&
 					options.message ===
-						"Integration name (e.g., My_Integration):"
+						"Integration name (e.g., My_Integration or My.Integration):"
 				) {
 					nameValidateFunction = options.validate;
 				}
@@ -265,7 +265,7 @@ describe("Integration Commands", () => {
 				if (
 					callCount === 0 &&
 					options.message ===
-						"Integration name (e.g., My_Integration):"
+						"Integration name (e.g., My_Integration or My.Integration):"
 				) {
 					nameValidateFunction = options.validate;
 				}
@@ -290,13 +290,13 @@ describe("Integration Commands", () => {
 			await IntegrationCommands.execute(["create"]);
 
 			expect(nameValidateFunction("Test123")).toBe(
-				"Name can only contain letters and underscores (no numbers or hyphens)"
+				"Name can only contain letters, underscores, and periods (no numbers or hyphens)"
 			);
 			expect(nameValidateFunction("Test-Integration")).toBe(
-				"Name can only contain letters and underscores (no numbers or hyphens)"
+				"Name can only contain letters, underscores, and periods (no numbers or hyphens)"
 			);
 			expect(nameValidateFunction("Test@Integration")).toBe(
-				"Name can only contain letters and underscores (no numbers or hyphens)"
+				"Name can only contain letters, underscores, and periods (no numbers or hyphens)"
 			);
 		});
 
@@ -307,7 +307,7 @@ describe("Integration Commands", () => {
 				if (
 					callCount === 0 &&
 					options.message ===
-						"Integration name (e.g., My_Integration):"
+						"Integration name (e.g., My_Integration or My.Integration):"
 				) {
 					nameTransformFunction = options.transform;
 				}
