@@ -1,6 +1,6 @@
 {
 	"name": "@boltic/cli",
-	"version": "1.0.24",
+	"version": "1.0.25",
 	"description": "A powerful CLI tool for managing Boltic Workflow integrations - create, sync, test, and publish integrations with ease",
 	"main": "index.js",
 	"bin": {
@@ -128,9 +128,6 @@
 		"lint-staged": "^16.1.4",
 		"nodemon": "^3.1.10",
 		"prettier": "^3.6.2"
-	},
-	"peerDependencies": {
-		"node": ">=18.0.0"
 	},
 	"os": [
 		"darwin",
