@@ -86,12 +86,22 @@ export const createIntegrationFolderStructure = async (
 export const createExistingIntegrationsFolder = async (payload) => {
 	const {
 		integration,
-		authentication,
-		webhook,
-		configuration,
-		resources,
-		operations,
-	} = payload;
+		authentication = {},
+		webhook = {},
+		configuration = {},
+		resources = [],
+		operations = [],
+	} = payload || {};
+
+	// Validate required payload fields early to prevent null dereferences
+	if (!integration || !integration.name) {
+		console.error(
+			chalk.red(
+				"\n❌ Invalid integration payload received. Missing integration or name."
+			)
+		);
+		return false;
+	}
 
 	const {
 		id,
@@ -137,15 +147,17 @@ export const createExistingIntegrationsFolder = async (payload) => {
 	const resourcesDir = path.join(schemasDir, "resources");
 	fs.mkdirSync(resourcesDir, { recursive: true });
 
-	const authentication_documentation = authentication.documentation;
+	const authentication_documentation = authentication?.documentation || "";
 
 	// Define files and content
 	const files = {
-		"schemas/authentication.json": JSON.stringify(
-			authentication.content || {},
-			null,
-			4
-		),
+		...(authentication && {
+			"schemas/authentication.json": JSON.stringify(
+				authentication?.content || {},
+				null,
+				4
+			),
+		}),
 		"schemas/base.json": JSON.stringify(
 			configuration?.content || {},
 			null,
@@ -153,7 +165,9 @@ export const createExistingIntegrationsFolder = async (payload) => {
 		),
 		"schemas/webhook.json": JSON.stringify(webhook?.content || {}, null, 4),
 		"spec.json": JSON.stringify(spec, null, 4),
-		"Authentication.mdx": authentication_documentation || "",
+		...(authentication && {
+			"Authentication.mdx": authentication_documentation || "",
+		}),
 		"Documentation.mdx": documentation || "",
 	};
 
@@ -163,7 +177,7 @@ export const createExistingIntegrationsFolder = async (payload) => {
 		const resourceName = resource.name.toLowerCase().replace(/\s+/g, "-");
 		const resourcePath = path.join(resourcesDir, `${resourceName}.json`);
 
-		const resourceOperations = operations.filter(
+		const resourceOperations = (operations || []).filter(
 			(operation) => operation.resource_id === resource_id
 		);
 
@@ -172,14 +186,14 @@ export const createExistingIntegrationsFolder = async (payload) => {
 				const operationName = operation.name
 					.toLowerCase()
 					.replace(/\s+/g, "-");
-				acc[operationName] = operation.content;
+				acc[operationName] = operation?.content;
 				return acc;
 			},
 			{}
 		);
 
 		const resourceFileContent = {
-			...resource.content,
+			...resource?.content,
 			...operationsContent,
 		};
 
