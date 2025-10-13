@@ -129,9 +129,6 @@
 		"nodemon": "^3.1.10",
 		"prettier": "^3.6.2"
 	},
-	"peerDependencies": {
-		"node": ">=18.0.0"
-	},
 	"os": [
 		"darwin",
 		"linux",
