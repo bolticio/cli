@@ -114,6 +114,16 @@ async function readSchemaFiles(currentDir) {
 	// Read documentation files
 	const authDocPath = path.join(currentDir, "Authentication.mdx");
 	const generalDocPath = path.join(currentDir, "Documentation.mdx");
+	const docsIntegrationPath = path.join(
+		currentDir,
+		"documentation",
+		"integration.mdx"
+	);
+	const docsTriggerPath = path.join(
+		currentDir,
+		"documentation",
+		"trigger.mdx"
+	);
 
 	if (fs.existsSync(authDocPath)) {
 		schemas.authentication_documentation = fs.readFileSync(
@@ -122,8 +132,22 @@ async function readSchemaFiles(currentDir) {
 		);
 	}
 
-	if (fs.existsSync(generalDocPath)) {
-		schemas.documentation = fs.readFileSync(generalDocPath, "utf8");
+	// Build documentation object with backward compatibility
+	const documentation = {};
+	if (fs.existsSync(docsIntegrationPath)) {
+		documentation.integration = fs.readFileSync(
+			docsIntegrationPath,
+			"utf8"
+		);
+	} else if (fs.existsSync(generalDocPath)) {
+		// Fallback to legacy Documentation.mdx
+		documentation.integration = fs.readFileSync(generalDocPath, "utf8");
+	}
+	if (fs.existsSync(docsTriggerPath)) {
+		documentation.trigger = fs.readFileSync(docsTriggerPath, "utf8");
+	}
+	if (Object.keys(documentation).length > 0) {
+		schemas.documentation = documentation;
 	}
 
 	return schemas;
@@ -1091,7 +1115,25 @@ async function handleStatus() {
 
 		if (integration.documentation) {
 			console.log(chalk.cyan("\nDocumentation:"));
-			console.log(integration.documentation);
+			if (
+				typeof integration.documentation === "object" &&
+				integration.documentation !== null
+			) {
+				if (integration.documentation.integration) {
+					console.log(
+						chalk.dim("integration.mdx:\n") +
+							integration.documentation.integration
+					);
+				}
+				if (integration.documentation.trigger) {
+					console.log(
+						chalk.dim("\ntrigger.mdx:\n") +
+							integration.documentation.trigger
+					);
+				}
+			} else {
+				console.log(integration.documentation);
+			}
 		}
 	} catch (error) {
 		if (

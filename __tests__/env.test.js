@@ -290,6 +290,19 @@ describe("Environment Commands", () => {
 				expect.stringContaining("http://bolt.api.test")
 			);
 		});
+
+		it("should fall back to default env when secure storage fails", async () => {
+			jest.resetModules();
+			jest.doMock("../helper/secure-storage.js", () => ({
+				getAllSecrets: jest.fn().mockRejectedValue(new Error("boom")),
+			}));
+			const envHelper = await import("../helper/env.js");
+			const env = await envHelper.getCurrentEnv();
+			expect(env.name).toBeDefined();
+			expect(env.apiUrl).toBeDefined();
+			expect(env.token).toBeNull();
+			expect(env.session).toBeNull();
+		});
 	});
 
 	describe("Success Messages", () => {
