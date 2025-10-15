@@ -356,5 +356,26 @@ describe("Utils Integration", () => {
 				writable: true,
 			});
 		});
+
+		it("should return null when picker returns invalid path", async () => {
+			const originalPlatform = process.platform;
+			Object.defineProperty(process, "platform", {
+				value: "darwin",
+				writable: true,
+			});
+
+			// Simulate osascript returns a path but fs.existsSync returns false
+			mockExecSync.mockReturnValue(Buffer.from("/missing/file.svg"));
+			mockFs.existsSync.mockReturnValue(false);
+
+			const result = await utils.getSvgFilePath();
+
+			expect(result).toBeUndefined(); // function returns nothing when file invalid
+
+			Object.defineProperty(process, "platform", {
+				value: originalPlatform,
+				writable: true,
+			});
+		});
 	});
 });

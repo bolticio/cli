@@ -158,7 +158,7 @@ async function handleEnvironment(args) {
 }
 
 async function showVersion() {
-	let version = "1.0.0"; // default fallback
+	let version = "1.0.0";
 	try {
 		let baseDir;
 		if (typeof import.meta !== "undefined" && import.meta.url) {
