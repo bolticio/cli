@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import EnvironmentCommands from "./commands/env.js";
 import IntegrationCommands from "./commands/integration.js";
 import AuthCommands from "./commands/login.js";
@@ -108,17 +109,33 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 };
 
 async function showHelp(commands) {
-	let packageJson;
+	let version = "1.0.0";
 	try {
-		// Try to read package.json from current directory
-		packageJson = JSON.parse(
-			fs.readFileSync(path.join(process.cwd(), "package.json"))
+		let baseDir;
+		if (typeof import.meta !== "undefined" && import.meta.url) {
+			// Resolve module directory in a cross-platform (Windows-safe) way
+			const filename = fileURLToPath(import.meta.url);
+			baseDir = path.dirname(filename);
+		} else {
+			baseDir = process.cwd();
+		}
+		const packageJsonPath = path.join(baseDir, "package.json");
+		const packageJson = JSON.parse(
+			fs.readFileSync(packageJsonPath, "utf-8")
 		);
+		version = packageJson.version || version;
 	} catch {
-		// Fallback version if package.json not found
-		packageJson = { version: "1.0.0" };
+		// Best-effort secondary attempt from current working directory
+		try {
+			const fallbackPath = path.join(process.cwd(), "package.json");
+			const packageJson = JSON.parse(
+				fs.readFileSync(fallbackPath, "utf-8")
+			);
+			version = packageJson.version || version;
+		} catch {
+			// keep default version
+		}
 	}
-	const version = packageJson.version;
 
 	console.log(chalk.bold.yellow(`\nBoltic CLI Version: ${version}\n`));
 	console.log("\nUsage: boltic [command]\n");
@@ -143,22 +160,30 @@ async function handleEnvironment(args) {
 async function showVersion() {
 	let version = "1.0.0"; // default fallback
 	try {
-		let packageJsonPath;
+		let baseDir;
 		if (typeof import.meta !== "undefined" && import.meta.url) {
-			// ES modules in Node.js
-			const currentDir = path.dirname(new URL(import.meta.url).pathname);
-			packageJsonPath = path.join(currentDir, "package.json");
+			// Windows-safe resolution for ESM modules
+			const filename = fileURLToPath(import.meta.url);
+			baseDir = path.dirname(filename);
 		} else {
-			// Jest or other environments
-			packageJsonPath = path.join(process.cwd(), "package.json");
+			baseDir = process.cwd();
 		}
-
+		const packageJsonPath = path.join(baseDir, "package.json");
 		const packageJson = JSON.parse(
 			fs.readFileSync(packageJsonPath, "utf-8")
 		);
-		version = packageJson.version;
+		version = packageJson.version || version;
 	} catch {
-		// fallback already defined
+		// Best-effort secondary attempt from current working directory
+		try {
+			const fallbackPath = path.join(process.cwd(), "package.json");
+			const packageJson = JSON.parse(
+				fs.readFileSync(fallbackPath, "utf-8")
+			);
+			version = packageJson.version || version;
+		} catch {
+			// fallback already defined
+		}
 	}
 	console.log(`Boltic CLI Version: ${version}`);
 }
