@@ -2,6 +2,7 @@ import fs from "fs";
 import isEmpty from "lodash.isempty";
 import path from "path";
 import * as componentSchemas from "../templates/component-schemas.js";
+import { validateMarkdownFile } from "./markdown.js";
 
 const validateOptionObject = (options, fieldName, fileLabel, errors) => {
 	options.forEach((opt, index) => {
@@ -325,9 +326,82 @@ const validateComponentSchemas = (schemas, errors, filename = "") => {
 // INDIVIDUAL VALIDATORS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const validateDocumentation = (docPath, errors) => {
-	if (!fs.existsSync(docPath)) {
-		errors.add(`"Documentation.mdx" not found in the root directory.`);
+const validateDocumentation = (currentDir, spec, errors) => {
+	const docsIntegrationPath = path.join(
+		currentDir,
+		"documentation",
+		"integration.mdx"
+	);
+	const docsTriggerPath = path.join(
+		currentDir,
+		"documentation",
+		"trigger.mdx"
+	);
+	const legacyDocPath = path.join(currentDir, "Documentation.mdx");
+
+	const requiresIntegrationDoc = spec && !isEmpty(spec.activity_type);
+	const requiresTriggerDoc = spec && spec.trigger_type === "CloudTrigger";
+
+	// Backward-compatibility: if nothing specific is required by spec,
+	// ensure at least legacy Documentation.mdx or new docs exist
+	const hasLegacy = fs.existsSync(legacyDocPath);
+	const hasNewIntegration = fs.existsSync(docsIntegrationPath);
+	const hasNewTrigger = fs.existsSync(docsTriggerPath);
+
+	if (!requiresIntegrationDoc && !requiresTriggerDoc) {
+		if (!hasLegacy && !hasNewIntegration && !hasNewTrigger) {
+			errors.add('"Documentation.mdx" not found in the root directory.');
+			return; // No further checks needed
+		}
+		// If files exist, validate whatever is present
+		if (hasLegacy) {
+			validateMarkdownFile(legacyDocPath, errors, "Documentation.mdx");
+		}
+		if (hasNewIntegration) {
+			validateMarkdownFile(
+				docsIntegrationPath,
+				errors,
+				"documentation/integration.mdx"
+			);
+		}
+		if (hasNewTrigger) {
+			validateMarkdownFile(
+				docsTriggerPath,
+				errors,
+				"documentation/trigger.mdx"
+			);
+		}
+		return;
+	}
+
+	if (requiresIntegrationDoc) {
+		const hasNew = validateMarkdownFile(
+			docsIntegrationPath,
+			errors,
+			"documentation/integration.mdx"
+		);
+		const hasLegacyValidated = validateMarkdownFile(
+			legacyDocPath,
+			errors,
+			"Documentation.mdx"
+		);
+		if (!hasNew && !hasLegacyValidated) {
+			// Maintain backward-compatible error message expected by tests
+			errors.add('"Documentation.mdx" not found in the root directory.');
+		}
+	}
+
+	if (requiresTriggerDoc) {
+		const hasTrigger = validateMarkdownFile(
+			docsTriggerPath,
+			errors,
+			"documentation/trigger.mdx"
+		);
+		if (!hasTrigger) {
+			errors.add(
+				'"documentation/trigger.mdx" not found when trigger_type is "CloudTrigger".'
+			);
+		}
 	}
 };
 
@@ -525,13 +599,11 @@ export const validateIntegrationSchemas = (currentDir) => {
 		spec: path.join(currentDir, "spec.json"),
 		webhook: path.join(currentDir, "schemas", "webhook.json"),
 		authentication: path.join(currentDir, "schemas", "authentication.json"),
-		documentation: path.join(currentDir, "Documentation.mdx"),
 	};
 
 	// Step-by-step validation
-	validateDocumentation(paths.documentation, errors);
-
 	const spec = validateSpec(paths.spec, errors);
+	validateDocumentation(currentDir, spec, errors);
 	validateWebhook(paths.webhook, spec, errors);
 	validateAuthentication(paths.authentication, errors);
 

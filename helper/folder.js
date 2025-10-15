@@ -47,6 +47,9 @@ export const createIntegrationFolderStructure = async (
 	const resourcesDir = path.join(schemasDir, "resources");
 	fs.mkdirSync(resourcesDir, { recursive: true });
 
+	const docsDir = path.join(integrationDir, "documentation");
+	fs.mkdirSync(docsDir, { recursive: true });
+
 	// Create template files
 	const files = {
 		"schemas/resources/resource1.json": JSON.stringify(resource1, null, 4),
@@ -69,7 +72,13 @@ export const createIntegrationFolderStructure = async (
 		...(create_catalogue && {
 			"Authentication.mdx": `# ${name} Authentication`,
 		}),
-		"Documentation.mdx": `# ${name} Documentation`,
+		// Documentation files (new structure)
+		...(!isEmpty(activity_type) && {
+			"documentation/integration.mdx": `# ${name} Integration`,
+		}),
+		...(trigger_type === "CloudTrigger" && {
+			"documentation/trigger.mdx": `# ${name} Trigger`,
+		}),
 	};
 
 	// Create all files
@@ -147,7 +156,14 @@ export const createExistingIntegrationsFolder = async (payload) => {
 	const resourcesDir = path.join(schemasDir, "resources");
 	fs.mkdirSync(resourcesDir, { recursive: true });
 
+	const docsDir = path.join(integrationDir, "documentation");
+	fs.mkdirSync(docsDir, { recursive: true });
+
 	const authentication_documentation = authentication?.documentation || "";
+	const isDocumentationObject =
+		documentation &&
+		typeof documentation === "object" &&
+		!Array.isArray(documentation);
 
 	// Define files and content
 	const files = {
@@ -168,7 +184,17 @@ export const createExistingIntegrationsFolder = async (payload) => {
 		...(authentication && {
 			"Authentication.mdx": authentication_documentation || "",
 		}),
-		"Documentation.mdx": documentation || "",
+		...(!isEmpty(activity_type) && {
+			"documentation/integration.mdx": isDocumentationObject
+				? documentation?.integration || `# ${name} Integration`
+				: (typeof documentation === "string" && documentation) ||
+					`# ${name} Integration`,
+		}),
+		...(trigger_type === "CloudTrigger" && {
+			"documentation/trigger.mdx": isDocumentationObject
+				? documentation?.trigger || `# ${name} Trigger`
+				: `# ${name} Trigger`,
+		}),
 	};
 
 	// Write resource files
