@@ -1318,6 +1318,72 @@ describe("Integration Commands", () => {
 				expect.stringContaining("Integration not found")
 			);
 		});
+
+		it("should handle empty search term filters in status command", async () => {
+			const mockIntegrations = [
+				{
+					id: "1",
+					name: "Test Integration",
+					activity_type: "customActivity",
+				},
+				{
+					id: "2",
+					name: "Another Integration",
+					activity_type: "customActivity",
+				},
+			];
+
+			jest.mocked(integrationApi.listAllIntegrations).mockResolvedValue(
+				mockIntegrations
+			);
+
+			search.mockImplementationOnce(async ({ source }) => {
+				const emptyResult = await source("");
+				expect(emptyResult).toHaveLength(2);
+				const filteredResult = await source("another");
+				expect(filteredResult).toHaveLength(1);
+				return "1";
+			});
+
+			jest.mocked(integrationApi.getIntegrationById).mockResolvedValue({
+				id: "1",
+				name: "Test Integration",
+				status: "draft",
+				created_at: "2023-01-01T00:00:00Z",
+				updated_at: "2023-01-01T00:00:00Z",
+			});
+
+			await IntegrationCommands.execute(["status"]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("Integration Details")
+			);
+		});
+
+		it("should handle errors during status fetch gracefully", async () => {
+			const mockIntegrations = [
+				{
+					id: "1",
+					name: "Test Integration",
+					activity_type: "customActivity",
+				},
+			];
+
+			jest.mocked(integrationApi.listAllIntegrations).mockResolvedValue(
+				mockIntegrations
+			);
+			search.mockResolvedValue("1");
+			jest.mocked(integrationApi.getIntegrationById).mockRejectedValue(
+				new Error("Boom")
+			);
+
+			await IntegrationCommands.execute(["status"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Error fetching integration status"),
+				expect.stringContaining("Boom")
+			);
+		});
 	});
 
 	describe("readSchemaFiles", () => {

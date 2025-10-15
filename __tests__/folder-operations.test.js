@@ -530,5 +530,14 @@ describe("Folder Operations", () => {
 
 			expect(result).toBe(true);
 		});
+
+		it("should return false for invalid integration payload", async () => {
+			fs.existsSync.mockReturnValue(false);
+			const result = await folderHelper.createExistingIntegrationsFolder({
+				integration: null,
+			});
+
+			expect(result).toBe(false);
+		});
 	});
 });
