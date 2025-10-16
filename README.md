@@ -1,6 +1,6 @@
 # ⚡ Boltic CLI
 
-> **Professional CLI tool for creating, managing, and publishing Boltic Workflow integrations with enterprise-grade features and seamless developer experience.**
+> **Professional CLI for interacting with the Boltic platform — create, manage, and publish integrations, workflows, MCPs, and more with enterprise-grade features and a seamless developer experience.**
 
 [![NPM Version](https://img.shields.io/npm/v/@boltic/cli)](https://www.npmjs.com/package/@boltic/cli)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Repo-blue?logo=github)](https://github.com/bolticio/cli)
@@ -13,7 +13,7 @@
 
 ![Boltic CLI](https://img.shields.io/badge/Boltic-CLI-00D4AA?style=for-the-badge&logo=node.js&logoColor=white)
 
-**Streamline your integration development workflow with Boltic CLI**
+**Streamline your developer workflow on the Boltic platform**
 
 [Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
@@ -28,6 +28,7 @@
 - [📦 Installation](#-installation)
 - [🔐 Authentication](#-authentication)
 - [🧩 Integration Management](#-integration-management)
+- [🧠 MCP](#-mcp-model-context-protocol)
 - [📚 Command Reference](#-command-reference)
 - [🛠️ Development Workflow](#️-development-workflow)
 - [🔧 Configuration](#-configuration)
@@ -42,12 +43,12 @@
 ## ✨ Features
 
 - 🔐 **Secure Authentication** - Enterprise-grade token management with secure storage
-- 🚀 **Rapid Integration Development** - Create integrations in minutes, not hours
+- 🚀 **Rapid Development** - Create workflows, integrations, and more in minutes, not hours
 - 📦 **Smart Project Management** - Automated folder structure and configuration
 - 🔄 **Real-time Synchronization** - Instant sync with Boltic Cloud platform
 - 🎯 **Type-safe Development** - Support for Workflow Activities and Triggers
 - 🎨 **Rich Interactive UI** - Beautiful command-line interface with progress indicators
-- 📊 **Comprehensive Validation** - Built-in validation for all integration components
+- 📊 **Comprehensive Validation** - Built-in validation for platform resources and components
 - 🔧 **Developer Experience** - Hot reload, debugging tools, and comprehensive error handling
 - 🌐 **Multi-platform Support** - Works seamlessly on Windows, macOS, and Linux
 - 📈 **Version Control Integration** - Git-friendly workflow with proper ignore patterns
@@ -62,7 +63,7 @@ Get up and running with Boltic CLI in under 2 minutes:
 # Install Boltic CLI globally
 npm install -g @boltic/cli
 
-# Authenticate with your Boltic account
+# Authenticate with your Boltic account (if required for commands)
 boltic login
 
 # Create your first integration
@@ -274,6 +275,26 @@ boltic integration submit
 
 ---
 
+## 🔌 MCP Management
+
+The CLI includes utilities to set up MCP connections for popular clients. This helps your AI tools connect to Boltic services via STDIO or Streamable HTTP.
+
+### Usage
+
+```bash
+# Basic: configure MCP for Claude Desktop (default client)
+boltic mcp setup https://mcp.boltic.io/sse
+
+# Specify client and a friendly name
+boltic mcp setup https://mcp.boltic.io/sse my-boltic --client claude
+
+# Supported clients (examples):
+# claude, cline, roocode, windsurf, cursor, vscode, vscode-insiders,
+# witsy, enconvo, boltai, amazon-bedrock, amazonq, librechat, gemini-cli
+```
+
+---
+
 ## 📚 Command Reference
 
 ### Core Commands
@@ -296,6 +317,13 @@ boltic integration submit
 | `boltic integration submit` | Submit for review         |                       |
 | `boltic integration status` | Check integration status  | Interactive selection |
 | `boltic integration help`   | Show integration help     |                       |
+
+### MCP Commands
+
+| Command            | Description                                  | Options                           |
+| ------------------ | -------------------------------------------- | --------------------------------- |
+| `boltic mcp help`  | Show help for MCP sub-commands               |                                   |
+| `boltic mcp setup` | Configure an MCP server for a specific client| `--client <name>` `--name <alias>`|
 
 ### Help and Documentation
 
