@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import EnvironmentCommands from "./commands/env.js";
 import IntegrationCommands from "./commands/integration.js";
+import McpCommands from "./commands/mcp.js";
 import AuthCommands from "./commands/login.js";
 
 // Create a CLI module with functional approach
@@ -21,6 +22,10 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 		integration: {
 			description: "Manage integrations (create, list)",
 			action: (args) => handleIntegration(args),
+		},
+		mcp: {
+			description: "Manage MCPs clients and servers",
+			action: (args) => handleMcp(args),
 		},
 		logout: {
 			description: "Logout and clear access token",
@@ -155,6 +160,10 @@ async function handleIntegration(args) {
 
 async function handleEnvironment(args) {
 	await EnvironmentCommands.execute(args);
+}
+
+async function handleMcp(args) {
+	await McpCommands.execute(args);
 }
 
 async function showVersion() {
