@@ -27,12 +27,6 @@
 		"email": "ahmedsakri@gofynd.com",
 		"url": "https://github.com/ahmedsakri"
 	},
-	"contributors": [
-		{
-			"name": "Boltic Team",
-			"url": "https://www.boltic.io"
-		}
-	],
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/bolticio/cli.git",
