@@ -1,6 +1,6 @@
 {
 	"name": "@boltic/cli",
-	"version": "1.0.27-1",
+	"version": "1.0.27",
 	"description": "A powerful CLI tool for managing Boltic Workflow integrations - create, sync, test, and publish integrations with ease",
 	"main": "index.js",
 	"bin": {
@@ -27,12 +27,6 @@
 		"email": "ahmedsakri@gofynd.com",
 		"url": "https://github.com/ahmedsakri"
 	},
-	"contributors": [
-		{
-			"name": "Boltic Team",
-			"url": "https://www.boltic.io"
-		}
-	],
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/bolticio/cli.git",
@@ -107,6 +101,7 @@
 		"@inquirer/prompts": "^7.8.0",
 		"axios": "^1.11.0",
 		"chalk": "^5.5.0",
+		"js-yaml": "^4.1.0",
 		"keytar": "^7.9.0",
 		"lodash.isempty": "^4.4.0",
 		"open": "^10.2.0",

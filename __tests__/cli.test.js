@@ -1,8 +1,10 @@
 import { jest } from "@jest/globals";
 import createCLI from "../cli.js";
+import fs from "fs";
 import * as EnvironmentCommands from "../commands/env.js";
 import * as IntegrationCommands from "../commands/integration.js";
 import * as AuthCommands from "../commands/login.js";
+import * as McpCommands from "../commands/mcp.js";
 import * as commandSuggestions from "../helper/command-suggestions.js";
 import * as secureStorage from "../helper/secure-storage.js";
 
@@ -16,6 +18,7 @@ jest.mock("../commands/login.js", () => ({
 }));
 jest.mock("../commands/integration.js");
 jest.mock("../commands/env.js");
+jest.mock("../commands/mcp.js");
 jest.mock("../helper/secure-storage.js");
 jest.mock("../helper/command-suggestions.js");
 jest.mock("../helper/verbose.js");
@@ -134,6 +137,19 @@ describe("CLI Module", () => {
 				expect.stringContaining("Usage: boltic [command]")
 			);
 		});
+
+		it("should delegate to mcp command", async () => {
+			McpCommands.default.execute = jest.fn().mockResolvedValue();
+			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([
+				{ account: "token", password: "valid-token" },
+			]);
+
+			await cli.execute(["node", "cli.js", "mcp", "setup", "http://sse"]);
+			expect(McpCommands.default.execute).toHaveBeenCalledWith([
+				"setup",
+				"http://sse",
+			]);
+		});
 	});
 
 	describe("Authentication Check", () => {
@@ -202,6 +218,81 @@ describe("CLI Module", () => {
 
 			await cli.execute(["node", "cli.js", "--verbose", "help"]);
 			expect(verboseModule.setVerboseMode).toHaveBeenCalledWith(true);
+		});
+
+		describe("Version and Help Version Resolution", () => {
+			beforeEach(() => {
+				jest.restoreAllMocks();
+				// Reinstall console spies after restoreAllMocks
+				mockConsoleLog = jest
+					.spyOn(console, "log")
+					.mockImplementation(() => {});
+				mockConsoleError = jest
+					.spyOn(console, "error")
+					.mockImplementation(() => {});
+			});
+
+			it("showHelp falls back to cwd package.json when module path fails", async () => {
+				const readSpy = jest.spyOn(fs, "readFileSync");
+				// First attempt throws
+				readSpy.mockImplementationOnce(() => {
+					throw new Error("primary read failed");
+				});
+				// Fallback returns version
+				readSpy.mockImplementationOnce(() =>
+					Buffer.from('{"version":"9.9.9"}', "utf-8")
+				);
+
+				await cli.execute(["node", "cli.js", "help"]);
+
+				expect(mockConsoleLog).toHaveBeenCalledWith(
+					expect.stringContaining("Boltic CLI Version: 9.9.9")
+				);
+			});
+
+			it("showHelp keeps default version when both reads fail", async () => {
+				const readSpy = jest.spyOn(fs, "readFileSync");
+				readSpy.mockImplementation(() => {
+					throw new Error("fail");
+				});
+
+				await cli.execute(["node", "cli.js", "help"]);
+
+				expect(mockConsoleLog).toHaveBeenCalledWith(
+					expect.stringContaining("Boltic CLI Version: 1.0.0")
+				);
+			});
+
+			it("version falls back to cwd package.json when module path fails", async () => {
+				const readSpy = jest.spyOn(fs, "readFileSync");
+				// First attempt throws
+				readSpy.mockImplementationOnce(() => {
+					throw new Error("primary read failed");
+				});
+				// Fallback returns version
+				readSpy.mockImplementationOnce(() =>
+					Buffer.from('{"version":"8.8.8"}', "utf-8")
+				);
+
+				await cli.execute(["node", "cli.js", "version"]);
+
+				expect(mockConsoleLog).toHaveBeenCalledWith(
+					expect.stringContaining("Boltic CLI Version: 8.8.8")
+				);
+			});
+
+			it("version keeps default when both reads fail", async () => {
+				const readSpy = jest.spyOn(fs, "readFileSync");
+				readSpy.mockImplementation(() => {
+					throw new Error("fail");
+				});
+
+				await cli.execute(["node", "cli.js", "version"]);
+
+				expect(mockConsoleLog).toHaveBeenCalledWith(
+					expect.stringContaining("Boltic CLI Version: 1.0.0")
+				);
+			});
 		});
 
 		it("should remove verbose flag from arguments", async () => {
