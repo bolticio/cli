@@ -226,7 +226,9 @@ my-integration/
 │   ├── base.json
 │   └── webhook.json
 ├── Authentication.mdx
-├── Documentation.mdx
+├── documentation/
+│   ├── integration.mdx
+│   └── trigger.mdx
 └── spec.json
 ```
 
@@ -238,9 +240,11 @@ my-integration/
     - **`base.json`** - Base integration configuration and parameters
     - **`webhook.json`** - Webhook configuration (for trigger integrations)
 
-- **`Authentication.mdx`** - Authentication documentation in Markdown format
-- **`Documentation.mdx`** - General integration documentation
-- **`spec.json`** - Integration specification and metadata
+**Documentation files:**
+- `Authentication.mdx` - Authentication documentation in Markdown format (optional, created when catalogue is enabled)
+- `documentation/integration.mdx` - Activity documentation (required when activity_type is present; falls back to legacy `Documentation.mdx`)
+- `documentation/trigger.mdx` - Trigger documentation (required when trigger_type is "CloudTrigger")
+- `spec.json` - Integration specification and metadata
 
 ### Managing Existing Integrations
 
@@ -447,7 +451,7 @@ boltic --verbose login
 
 ```bash
 # Verify project structure
-ls -la  # Should show: schemas/, Authentication.mdx, Documentation.mdx, spec.json
+ls -la  # Should show: schemas/, Authentication.mdx (optional), documentation/, spec.json
 
 # Check file permissions
 ls -la schemas/

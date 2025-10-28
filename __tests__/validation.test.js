@@ -160,9 +160,13 @@ describe("Validation", () => {
 			expect(result).toEqual({ success: true });
 		});
 
-		it("should fail when Documentation.mdx is missing", () => {
+		it("should fail when Documentation.mdx (legacy) is missing", () => {
 			mockExists.mockImplementation((filePath) => {
-				return !filePath.includes("Documentation.mdx");
+				return !(
+					filePath.includes("Documentation.mdx") ||
+					filePath.includes("documentation/integration.mdx") ||
+					filePath.includes("documentation/trigger.mdx")
+				);
 			});
 
 			const result = validation.validateIntegrationSchemas(testDir);

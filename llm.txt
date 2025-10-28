@@ -103,7 +103,8 @@ Interactive creation wizard with comprehensive prompts:
 Enhanced validation system (`helper/validation.js`):
 
 #### Required Files
-- `Documentation.mdx` - Integration documentation
+- `documentation/integration.mdx` - Activity documentation (required when `activity_type` is present). If absent, legacy `Documentation.mdx` is accepted as fallback.
+- `documentation/trigger.mdx` - Trigger documentation (required when `trigger_type` is `CloudTrigger`).
 - `spec.json` - Integration specification with proper format
 - `schemas/authentication.json` - Authentication configuration
 - `schemas/base.json` - Base schema configuration
@@ -123,7 +124,7 @@ Enhanced validation system (`helper/validation.js`):
 - **Folder Structure Creation**: Automatic creation of integration directory structure
 - **Schema Management**: JSON file parsing, validation, and updates
 - **Icon Handling**: SVG file selection, validation, and cloud upload
-- **Documentation Files**: MDX file management for authentication and general docs
+- **Documentation Files**: MDX management for `Authentication.mdx`, `documentation/integration.mdx`, and `documentation/trigger.mdx` (legacy `Documentation.mdx` supported for backward compatibility)
 - **Resource Management**: Dynamic resource file handling
 
 ### Testing Integration
