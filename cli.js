@@ -56,6 +56,7 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 			}
 
 			const command = args[2];
+			const subCommand = args.length >= 3 ? args[3] : undefined;
 
 			if (!command) {
 				showHelp(commands);
@@ -81,12 +82,19 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 				return;
 			}
 
+			if (!subCommand) {
+				// Show help for the command if no subcommand is provided
+				const commandObj = commands[command];
+				await commandObj.action(args.slice(3));
+			}
+
 			// Check if user is authenticated for all commands except login, logout, help, and version
 			if (
 				command !== "login" &&
 				command !== "logout" &&
 				command !== "help" &&
-				command !== "version"
+				command !== "version" &&
+				(command !== "mcp" || subCommand !== "setup")
 			) {
 				const secrets = await getAllSecrets();
 				const userData = secrets?.reduce(

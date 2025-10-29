@@ -96,8 +96,6 @@ async function handleSetup(args) {
 		const mcpUrl = url;
 		const command = `composio --sse "${mcpUrl}"`;
 
-		console.log(chalk.cyan("💾 Saving configurations..."));
-
 		saveMcpConfig(url, client, newKey, mcpUrl, command);
 
 		console.log(
