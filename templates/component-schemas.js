@@ -582,6 +582,7 @@ const code = {
 			showCopyToClipboard: true,
 			showHtmlPreview: false,
 			height: "auto",
+			showGraphQLInspector: true,
 		},
 		validation: {
 			required: false,
