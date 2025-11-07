@@ -1,8 +1,26 @@
 import axios from "axios";
 import FormData from "form-data";
 import fs from "fs";
+import https from "https";
 import { handleError } from "../helper/error.js";
 import { logApi } from "../helper/verbose.js";
+
+const getHttpsAgentForUrl = (baseUrl) => {
+	try {
+		const host = new URL(baseUrl).hostname;
+		if (
+			host.endsWith("fcz0.de") ||
+			host.endsWith("uat.fcz0.de") ||
+			host.endsWith("fyndx1.de") ||
+			process.env.BOLTCI_INSECURE_TLS === "true"
+		) {
+			return new https.Agent({ rejectUnauthorized: false });
+		}
+	} catch (_) {
+		// ignore URL parse errors and fall back to default agent
+	}
+	return undefined;
+};
 
 const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 	if (!token || !session || !accountId) {
@@ -26,6 +44,7 @@ const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};
 
 		const response = await axios(axiosOptions);
@@ -58,6 +77,7 @@ const listAllIntegrations = async (apiUrl, token, accountId, session) => {
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};
 
 		const response = await axios(axiosOptions);
@@ -93,6 +113,7 @@ const saveIntegration = async (
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data.data;
 	} catch (error) {
@@ -120,6 +141,7 @@ const editIntegration = async (apiUrl, token, accountId, session, payload) => {
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 
 		return response.data.data;
@@ -154,6 +176,7 @@ const updateIntegration = async (
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data.data;
 	} catch (error) {
@@ -186,6 +209,7 @@ const getIntegrationById = async (
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data.data;
 	} catch (error) {
@@ -218,6 +242,7 @@ const getAuthenticationByIntegrationId = async (
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data.data;
 	} catch (error) {
@@ -250,6 +275,7 @@ const getWebhooksByIntegrationId = async (
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data.data;
 	} catch (error) {
@@ -281,6 +307,7 @@ const getConfigurationByIntegrationId = async (
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data.data;
 	} catch (error) {
@@ -313,6 +340,7 @@ const syncIntegration = async (
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data.data;
 	} catch (error) {
@@ -345,6 +373,7 @@ const sendIntegrationForReview = async (
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data.data;
 	} catch (error) {
@@ -373,6 +402,7 @@ const purgeCache = async (apiUrl, token, accountId, session, integration) => {
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 		return response.data;
 	} catch (error) {
@@ -398,6 +428,7 @@ const pullIntegration = async (apiUrl, token, accountId, session, id) => {
 				Authorization: `Bearer ${token}`,
 				Cookie: session,
 			},
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
 
 		return response.data.data;
@@ -439,6 +470,7 @@ const uploadFileToCloud = async (
 					Authorization: `Bearer ${token}`,
 					Cookie: session,
 				},
+				httpsAgent: getHttpsAgentForUrl(apiUrl),
 			}
 		);
 
