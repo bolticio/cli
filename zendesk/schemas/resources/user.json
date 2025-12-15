@@ -1,0 +1,479 @@
+{
+    "getGroups": {
+        "definition": {
+            "qs": {
+                "exclude_deleted": true
+            },
+            "url": "https://{{secrets.subdomain}}.zendesk.com/api/v2/groups",
+            "method": "get",
+            "headers": {
+                "Authorization": "Basic convertBufferBase64String({{secrets.email}}:{{secrets.password}})"
+            },
+            "response": {
+                "error": {
+                    "code": "{{response.code}}",
+                    "message": "{{response.data.error}}"
+                },
+                "output": "{{response.data.groups}}"
+            }
+        }
+    },
+    "parameters": [
+        {
+            "meta": {
+                "options": [
+                    {
+                        "label": "Get Specific User",
+                        "value": "user.get"
+                    },
+                    {
+                        "label": "Get User List",
+                        "value": "user.getList"
+                    },
+                    {
+                        "label": "Create User",
+                        "value": "user.create"
+                    },
+                    {
+                        "label": "Update User",
+                        "value": "user.update"
+                    },
+                    {
+                        "label": "Delete User",
+                        "value": "user.delete"
+                    }
+                ],
+                "validation": {
+                    "required": true
+                },
+                "description": "Select the operation you want to perform.",
+                "displayName": "Operation",
+                "displayType": "select",
+                "placeholder": "Select an operation",
+                "dependencies": {
+                    "conditions": [
+                        {
+                            "field": "resource",
+                            "value": "user",
+                            "operator": "EQUALS"
+                        }
+                    ]
+                }
+            },
+            "name": "operation"
+        }
+    ],
+    "getOrganizations": {
+        "definition": {
+            "qs": {},
+            "url": "https://{{secrets.subdomain}}.zendesk.com/api/v2/organizations",
+            "method": "get",
+            "headers": {
+                "Authorization": "Basic convertBufferBase64String({{secrets.email}}:{{secrets.password}})"
+            },
+            "response": {
+                "error": {
+                    "code": "{{response.code}}",
+                    "message": "{{response.data.error}}"
+                },
+                "output": "{{response.data.organizations}}"
+            }
+        }
+    },
+    "update": {
+        "definition": {
+            "qs": {},
+            "url": "https://{{secrets.subdomain}}.zendesk.com/api/v2/users/{{parameters.user_id}}",
+            "body": {
+                "user": {
+                    "name": "{{parameters.name}}",
+                    "role": "{{parameters.role}}",
+                    "notes": "{{parameters.notes}}",
+                    "details": "{{parameters.details}}",
+                    "default_group_id": "{{parameters.default_group_id}}"
+                }
+            },
+            "method": "put",
+            "filters": {
+                "body": {
+                    "allowEmptyArray": false,
+                    "allowEmptyValue": false,
+                    "allowEmptyObject": false
+                }
+            },
+            "headers": {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Authorization": "Basic convertBufferBase64String({{secrets.email}}:{{secrets.password}})"
+            },
+            "response": {
+                "error": {
+                    "code": "{{response.status}}",
+                    "message": "{{response.data.error}}"
+                },
+                "output": "{{response.data}}"
+            }
+        },
+        "parameters": [
+            {
+                "meta": {
+                    "value": "",
+                    "description": "Enter the ID of the user you want to update.",
+                    "displayName": "User ID",
+                    "displayType": "text",
+                    "placeholder": "Enter user ID to be updated"
+                },
+                "name": "user_id"
+            },
+            {
+                "meta": {
+                    "validation": {
+                        "required": true
+                    },
+                    "description": "Enter the name of the user to be updated",
+                    "displayName": "Name",
+                    "displayType": "text",
+                    "placeholder": "Enter user name"
+                },
+                "name": "name"
+            },
+            {
+                "meta": {
+                    "value": false,
+                    "options": [
+                        {
+                            "label": "Agent",
+                            "value": "agent"
+                        },
+                        {
+                            "label": "End User",
+                            "value": "end-user"
+                        },
+                        {
+                            "label": "Admin",
+                            "value": "admin"
+                        }
+                    ],
+                    "description": "Select the role of the user to be updated.",
+                    "displayName": "Role",
+                    "displayType": "select",
+                    "placeholder": "Select User role"
+                },
+                "name": "role"
+            },
+            {
+                "meta": {
+                    "config": {
+                        "url": "integrations/options",
+                        "body": {
+                            "name": "zendesk",
+                            "secret": "{{parameters.secret}}",
+                            "resource": "user",
+                            "operation": "user.update",
+                            "loadOptionsMethod": "getGroups"
+                        },
+                        "method": "post",
+                        "urlType": "options",
+                        "labelKey": "name",
+                        "valueKey": "id"
+                    },
+                    "options": [],
+                    "description": "Select the default group you want to assign the user to be updated.",
+                    "displayName": "Group",
+                    "displayType": "select",
+                    "placeholder": "Select the default group of the user"
+                },
+                "name": "default_group_id"
+            },
+            {
+                "meta": {
+                    "value": "",
+                    "description": "Enter the details you have about the user.",
+                    "displayName": "Details",
+                    "displayType": "textarea",
+                    "placeholder": "Enter user details"
+                },
+                "name": "details"
+            },
+            {
+                "meta": {
+                    "value": "",
+                    "description": "Enter the notes you have about the user.",
+                    "displayName": "Notes",
+                    "displayType": "textarea",
+                    "placeholder": "Enter user notes"
+                },
+                "name": "notes"
+            }
+        ]
+    },
+    "getlist": {
+        "definition": {
+            "qs": {
+                "role": "{{parameters.role}}"
+            },
+            "url": "https://{{secrets.subdomain}}.zendesk.com/api/v2/users",
+            "method": "get",
+            "headers": {
+                "Authorization": "Basic convertBufferBase64String({{secrets.email}}:{{secrets.password}})"
+            },
+            "response": {
+                "error": {
+                    "code": "{{response.status}}",
+                    "message": "{{response.data.error}}"
+                },
+                "output": "{{response.data.users}}"
+            },
+            "pagination": {
+                "qs": {
+                    "page[size]": 10,
+                    "page[after]": "{{response.data.meta.after_cursor}}"
+                },
+                "type": "cursor",
+                "default": {
+                    "page[size]": 10,
+                    "page[after]": null
+                },
+                "condition": "{{response.data.meta.has_more}} !== false"
+            }
+        },
+        "parameters": [
+            {
+                "meta": {
+                    "value": "end-user",
+                    "options": [
+                        {
+                            "label": "Agent",
+                            "value": "agent"
+                        },
+                        {
+                            "label": "End User",
+                            "value": "end-user"
+                        },
+                        {
+                            "label": "Admin",
+                            "value": "admin"
+                        }
+                    ],
+                    "description": "Select the role of the user.",
+                    "displayName": "Role",
+                    "displayType": "select",
+                    "placeholder": "Select User role"
+                },
+                "name": "role"
+            }
+        ]
+    },
+    "delete": {
+        "definition": {
+            "qs": {},
+            "url": "https://{{secrets.subdomain}}.zendesk.com/api/v2/users/{{parameters.user_id}}",
+            "method": "delete",
+            "headers": {
+                "Authorization": "Basic convertBufferBase64String({{secrets.email}}:{{secrets.password}})"
+            },
+            "response": {
+                "error": {
+                    "code": "{{response.status}}",
+                    "message": "{{response.data.error}}"
+                },
+                "output": "{{response.data}}"
+            }
+        },
+        "parameters": [
+            {
+                "meta": {
+                    "value": "",
+                    "description": "Enter the ID of the user you want to delete. User will only be soft deleted",
+                    "displayName": "User ID",
+                    "displayType": "text",
+                    "placeholder": "Enter user ID to be deleted"
+                },
+                "name": "user_id"
+            }
+        ]
+    },
+    "get": {
+        "definition": {
+            "qs": {},
+            "url": "https://{{secrets.subdomain}}.zendesk.com/api/v2/users/{{parameters.user_id}}",
+            "method": "get",
+            "headers": {
+                "Accept": "application/json",
+                "Authorization": "Basic convertBufferBase64String({{secrets.email}}:{{secrets.password}})"
+            },
+            "response": {
+                "error": {
+                    "code": "{{response.status}}",
+                    "message": "{{response.data.error}}"
+                },
+                "output": "{{response.data}}"
+            }
+        },
+        "parameters": [
+            {
+                "meta": {
+                    "value": "",
+                    "description": "Enter ID of the user.",
+                    "displayName": "User ID",
+                    "displayType": "text",
+                    "placeholder": "Enter User ID"
+                },
+                "name": "user_id"
+            }
+        ]
+    },
+    "create": {
+        "definition": {
+            "qs": {},
+            "url": "https://{{secrets.subdomain}}.zendesk.com/api/v2/users",
+            "body": {
+                "user": {
+                    "name": "{{parameters.name}}",
+                    "role": "{{parameters.role}}",
+                    "email": "{{parameters.email}}",
+                    "notes": "{{parameters.notes}}",
+                    "details": "{{parameters.details}}",
+                    "organization_id": "{{parameters.organization_id}}",
+                    "default_group_id": "{{parameters.default_group_id}}"
+                }
+            },
+            "method": "post",
+            "filters": {
+                "body": {
+                    "allowEmptyArray": false,
+                    "allowEmptyValue": false,
+                    "allowEmptyObject": false
+                }
+            },
+            "headers": {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Authorization": "Basic convertBufferBase64String({{secrets.email}}:{{secrets.password}})"
+            },
+            "response": {
+                "error": {
+                    "code": "{{response.status}}",
+                    "message": "{{response.data.error}}"
+                },
+                "output": "{{response.data}}"
+            }
+        },
+        "parameters": [
+            {
+                "meta": {
+                    "validation": {
+                        "required": true
+                    },
+                    "description": "Enter the name of the user",
+                    "displayName": "Name",
+                    "displayType": "text",
+                    "placeholder": "Enter user name"
+                },
+                "name": "name"
+            },
+            {
+                "meta": {
+                    "value": "",
+                    "description": "Enter email of the user. Email should be unique",
+                    "displayName": "Email",
+                    "displayType": "text",
+                    "placeholder": "Enter user email"
+                },
+                "name": "email"
+            },
+            {
+                "meta": {
+                    "config": {
+                        "url": "integrations/options",
+                        "body": {
+                            "name": "zendesk",
+                            "secret": "{{parameters.secret}}",
+                            "resource": "user",
+                            "operation": "user.create",
+                            "loadOptionsMethod": "getOrganizations"
+                        },
+                        "method": "post",
+                        "urlType": "options",
+                        "labelKey": "name",
+                        "valueKey": "id"
+                    },
+                    "options": [],
+                    "description": "Select the organization you want to assign the user to.",
+                    "displayName": "Organization",
+                    "displayType": "select",
+                    "placeholder": "Select user organization"
+                },
+                "name": "organization_id"
+            },
+            {
+                "meta": {
+                    "value": false,
+                    "options": [
+                        {
+                            "label": "Agent",
+                            "value": "agent"
+                        },
+                        {
+                            "label": "End User",
+                            "value": "end-user"
+                        },
+                        {
+                            "label": "Admin",
+                            "value": "admin"
+                        }
+                    ],
+                    "description": "Select the role of the user.",
+                    "displayName": "Role",
+                    "displayType": "select",
+                    "placeholder": "Select User role"
+                },
+                "name": "role"
+            },
+            {
+                "meta": {
+                    "config": {
+                        "url": "integrations/options",
+                        "body": {
+                            "name": "zendesk",
+                            "secret": "{{parameters.secret}}",
+                            "resource": "user",
+                            "operation": "user.create",
+                            "loadOptionsMethod": "getGroups"
+                        },
+                        "method": "post",
+                        "urlType": "options",
+                        "labelKey": "name",
+                        "valueKey": "id"
+                    },
+                    "options": [],
+                    "description": "Select the default group you want to assign the user to.",
+                    "displayName": "Group",
+                    "displayType": "select",
+                    "placeholder": "Select the default group of the user"
+                },
+                "name": "default_group_id"
+            },
+            {
+                "meta": {
+                    "value": "",
+                    "description": "Enter the details about the user.",
+                    "displayName": "Details",
+                    "displayType": "textarea",
+                    "placeholder": "Enter user details"
+                },
+                "name": "details"
+            },
+            {
+                "meta": {
+                    "value": "",
+                    "description": "Enter the notes you have about the user.",
+                    "displayName": "Notes",
+                    "displayType": "textarea",
+                    "placeholder": "Enter user notes"
+                },
+                "name": "notes"
+            }
+        ]
+    }
+}

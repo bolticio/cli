@@ -1,0 +1,87 @@
+# Zendesk
+
+This guide walks you through setting up the Zendesk integration within Boltic.
+
+## Prerequisites
+
+To set up the Zendesk integration, you'll need:
+
+-   The Zendesk subdomain name
+
+-   The Zendesk email address
+
+-   The Zendesk personal access token or password
+
+-   Admin access to the Zendesk account
+
+## Setting Up the Zendesk Integration in Boltic
+
+1.  **Log In**
+
+    -   Log into your Boltic account or navigate to the Boltic Open Source dashboard.
+
+2.  **Navigate to Integrations from the Primary Menu**
+
+    -   Click on `Sources` and then click on `+ Add New source`.
+
+3.  **Select Source Type**
+
+    -   On the Set up the source page, search for `Zendesk` from the search bar and select it.
+
+4.  **Configure Integration**
+
+    -   **Name:** Enter a name for the Zendesk integration.
+
+    -   **Subdomain:** Enter your Zendesk subdomain. For example, if your Zendesk account is `https://example.zendesk.com`, enter `example` as your domain.
+
+    -   **Email:** Enter the email address associated with your Zendesk account.
+
+    -   **Personal Access Token or Password:** Enter your Zendesk password or personal access token (Incase of API Token please append token to the email field). Do note we need to enable API access in your Zendesk account before using this method. For more information, visit [Managing access to the Zendesk API](https://support.zendesk.com/hc/en-us/articles/4408889192858-Managing-access-to-the-Zendesk-API).
+
+5.  **Details (Optional)**
+
+    -   **Tags:** Add any tags for categorization.
+
+    -   **Description:** Provide a brief description of the integration.
+
+6.  **Test and Save Integration**
+
+    -   Click `Test Connection` to ensure the provided details are correct and the connection is successful.
+
+    -   Once the connection test is successful, click `Set up source` to complete the configuration.
+
+## Troubleshooting
+
+If you encounter any issues during setup:
+
+-   **Check Access Token:** Ensure the provided personal access token is correct and has the necessary permissions.
+
+-   **Verify Domain URL:** Confirm the domain URL is correct.
+
+-   **Network Issues:** Check for any network issues that might be affecting connectivity.
+
+## Frequently Asked Questions (FAQs)
+
+1.  **How do I find my Zendesk personal access token?**
+
+-   To find your Zendesk personal access token, navigate to your Zendesk account settings and look for the API token section. You can also refer to <a href="https://support.zendesk.com/hc/en-us/articles/4408889192858-Managing-access-to-the-Zendesk-API"  target="_blank" rel="noopener"><span>Zendesk's official documentation</span></a>.
+
+2.  **What should I do if my connection fails?**
+
+-   Ensure your password or personal access token is correct.
+
+-   Verify the subdomain and email address and ensure there are no typos.
+
+-   Check your network connection and firewall settings.
+
+3.  **How often is the data synced?**
+
+-   The data sync frequency is determined by the settings configured during setup. You can customize the sync frequency as needed.
+
+4.  **Can I customize the data being synced?**
+
+-   Yes, you can customize the data being synced by adjusting the settings during the setup process.
+
+## Support
+
+If you need further assistance, please contact Boltic support or visit our <a href="https://docs.boltic.io" target="_blank" rel="noopener"><span>Support Documentation</span></a>.

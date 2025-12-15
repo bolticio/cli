@@ -1,0 +1,103 @@
+{
+    "parameters": [
+        {
+            "meta": {
+                "options": [
+                    {
+                        "label": "Email and Password",
+                        "value": "email_password"
+                    }
+                ],
+                "validation": {
+                    "required": true
+                },
+                "description": "Choose the type of authentication you want to use.",
+                "displayName": "Authentication Type",
+                "displayType": "select",
+                "placeholder": "Select an authentication type"
+            },
+            "name": "type"
+        }
+    ],
+    "email_password": {
+        "validate": {
+            "url": "https://{{secrets.subdomain}}.zendesk.com/api/v2/account/settings",
+            "method": "get",
+            "headers": {
+                "Authorization": "Basic convertBufferBase64String({{secrets.email}}:{{secrets.password}})"
+            },
+            "response": {
+                "error": {
+                    "code": "{{response.status}}",
+                    "message": "{{response.data.error}}"
+                },
+                "output": "{{response.data}}"
+            }
+        },
+        "parameters": [
+            {
+                "meta": {
+                    "validation": {
+                        "required": true
+                    },
+                    "description": "Enter the domain of your Zendesk account. For example, if your Zendesk account is `https://example.zendesk.com`, enter `example` as your domain.",
+                    "displayName": "Subdomain",
+                    "displayType": "text",
+                    "placeholder": "Enter zendesk subdomain",
+                    "dependencies": {
+                        "conditions": [
+                            {
+                                "field": "type",
+                                "value": "email_password",
+                                "operator": "EQUALS"
+                            }
+                        ]
+                    }
+                },
+                "name": "subdomain"
+            },
+            {
+                "meta": {
+                    "validation": {
+                        "required": true
+                    },
+                    "description": "Enter email account of your Zendesk account.",
+                    "displayName": "Email Address",
+                    "displayType": "text",
+                    "placeholder": "Enter user email address",
+                    "dependencies": {
+                        "conditions": [
+                            {
+                                "field": "type",
+                                "value": "email_password",
+                                "operator": "EQUALS"
+                            }
+                        ]
+                    }
+                },
+                "name": "email"
+            },
+            {
+                "meta": {
+                    "validation": {
+                        "required": true
+                    },
+                    "description": "Enter user password or API Token (Incase of API Token please append <b>token</b> to the email field).Please do enable API access in your Zendesk account before using this method. For more information, visit <a href='https://support.zendesk.com/hc/en-us/articles/4408889192858-Managing-access-to-the-Zendesk-API' target='_blank'>Managing access to the Zendesk API</a>.",
+                    "displayName": "Password or API Token",
+                    "displayType": "password",
+                    "placeholder": "Enter user password or API Token",
+                    "dependencies": {
+                        "conditions": [
+                            {
+                                "field": "type",
+                                "value": "email_password",
+                                "operator": "EQUALS"
+                            }
+                        ]
+                    }
+                },
+                "name": "password"
+            }
+        ]
+    }
+}
