@@ -1,0 +1,994 @@
+import chalk from "chalk";
+import fs from "fs";
+import path from "path";
+import yaml from "js-yaml";
+import {
+	uniqueNamesGenerator,
+	adjectives,
+	animals,
+} from "unique-names-generator";
+
+// Supported languages and their versions
+export const SUPPORTED_LANGUAGES = ["nodejs", "python", "golang", "java"];
+export const LANGUAGE_VERSIONS = {
+	nodejs: "20",
+	python: "3",
+	golang: "1.22",
+	java: "17",
+};
+
+// Handler mapping per language
+export const HANDLER_MAPPING = {
+	nodejs: "handler.handler",
+	python: "index.handler",
+	golang: "handler.handler",
+	java: "Handler.handler",
+};
+
+// Language display names for dropdown
+export const LANGUAGE_CHOICES = [
+	{ name: "NodeJS", value: "nodejs" },
+	{ name: "Python", value: "python" },
+	{ name: "Golang", value: "golang" },
+	{ name: "Java", value: "java" },
+];
+
+/**
+ * Parse command line arguments for the create command
+ */
+export function parseCreateArgs(args) {
+	const parsed = {
+		name: null,
+		language: null,
+		directory: process.cwd(),
+	};
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		const nextArg = args[i + 1];
+
+		if ((arg === "--name" || arg === "-n") && nextArg) {
+			parsed.name = nextArg;
+			i++;
+		} else if ((arg === "--language" || arg === "-l") && nextArg) {
+			parsed.language = nextArg.toLowerCase();
+			i++;
+		} else if ((arg === "--directory" || arg === "-d") && nextArg) {
+			parsed.directory = path.resolve(nextArg);
+			i++;
+		}
+	}
+
+	return parsed;
+}
+
+/**
+ * Generate a random serverless name using unique-names-generator
+ * Similar to go-randomdata's SillyName() function
+ * @see https://github.com/Pallinder/go-randomdata
+ */
+export function generateRandomName(language) {
+	const sillyName = uniqueNamesGenerator({
+		dictionaries: [adjectives, animals],
+		separator: "-",
+		length: 2,
+		style: "lowerCase",
+	});
+	return `${sillyName}-${language}`;
+}
+
+/**
+ * Get the boltic.yaml template content
+ */
+export function getBolticYamlContent(templateContext, language) {
+	return `app: "${templateContext.AppSlug}"
+region: "${templateContext.Region}"
+handler: "${HANDLER_MAPPING[language]}"
+language: "${templateContext.Language}"
+
+build:
+  builtin: dockerfile
+  ignorefile: .gitignore
+`;
+}
+
+/**
+ * Get handler file content based on language
+ */
+export function getHandlerContent(language) {
+	const handlers = {
+		nodejs: `// Define the handler function
+export const handler = async (event, res) => {
+    try {
+        // Prepare the response JSON
+        const responseJson = {
+            message: "Hello World"
+        };
+
+        // Print the JSON response to stdout
+        console.log(JSON.stringify(responseJson));
+
+        // Set the response headers
+        res.setHeader('Content-Type', 'application/json');
+
+        // Send the response JSON
+        res.end(JSON.stringify(responseJson));
+    } catch (error) {
+        // Handle errors
+        console.error(error);
+        // Send an error response if needed
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('Internal Server Error');
+    }
+};
+`,
+		python: `# Import the required modules
+from flask import jsonify
+
+# Define the handler function
+def handler(request):
+    # Create the response JSON
+    response_json = {
+        'message': 'Hello World'
+    }
+
+    # Print the JSON response to stdout
+    print(response_json)
+
+    # Return a JSON response
+    return jsonify(response_json)
+`,
+		golang: `package main
+
+// Import necessary packages
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
+
+// Define the handler function
+func handler(req http.ResponseWriter, res *http.Request) {
+	// Initialize a map to hold the response body
+	response := map[string]string{
+		"message": "Hello, World!", // Set the message to "Hello, World!"
+	}
+
+	// Set the Content-Type header to application/json
+	req.Header().Set("Content-Type", "application/json")
+
+	// Encode the response map into JSON and write it to the response
+	json.NewEncoder(req).Encode(response)
+
+	// Marshal the response map into JSON
+	responseJson, err := json.Marshal(response)
+	if err != nil {
+		http.Error(req, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Print the JSON response to stdout
+	fmt.Println(string(responseJson))
+}
+`,
+		java: `package com.boltic.io.serverless;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+
+@Service
+public class Handler {
+
+    /**
+     * Handles the incoming request and returns a JSON response.
+     *
+     * @return ResponseEntity containing the JSON response or an error message.
+     */
+    public ResponseEntity<String> handler(String method, String requestBody) {
+        try {
+            // Prepare the response JSON
+            String responseJson = "{\\"message\\": \\"Hello World\\"}";
+
+            // Print the JSON response to stdout
+            System.out.println(responseJson);
+
+            // Return the response with HTTP status 200 (OK)
+            return ResponseEntity.ok().body(responseJson);
+        } catch (Exception e) {
+            // Handle errors by printing the stack trace
+            e.printStackTrace();
+
+            // Return an error response with HTTP status 500 (Internal Server Error)
+            return ResponseEntity.status(500).body("Internal Server Error");
+        }
+    }
+}
+`,
+	};
+
+	return handlers[language] || "";
+}
+
+/**
+ * Get the handler file path based on language
+ */
+export function getHandlerFilePath(language) {
+	const paths = {
+		nodejs: "handler.js",
+		python: "index.py",
+		golang: "handler.go",
+		java: "src/main/java/com/boltic/io/serverless/Handler.java",
+	};
+
+	return paths[language] || "";
+}
+
+/**
+ * Create the serverless function files
+ */
+export function createServerlessFiles(targetDir, language, templateContext) {
+	// Create boltic.yaml
+	const bolticYamlPath = path.join(targetDir, "boltic.yaml");
+	const bolticYamlContent = getBolticYamlContent(templateContext, language);
+	fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
+
+	// Create handler file
+	const handlerRelativePath = getHandlerFilePath(language);
+	const handlerPath = path.join(targetDir, handlerRelativePath);
+
+	// Create directories if needed (for Java)
+	const handlerDir = path.dirname(handlerPath);
+	if (!fs.existsSync(handlerDir)) {
+		fs.mkdirSync(handlerDir, { recursive: true });
+	}
+
+	const handlerContent = getHandlerContent(language);
+	fs.writeFileSync(handlerPath, handlerContent, "utf8");
+}
+
+/**
+ * Display success messages after serverless creation
+ */
+export function displayCreateSuccessMessages(targetDir) {
+	console.log("\n" + chalk.bgGreen.black(" ✓ SUCCESS ") + "\n");
+
+	console.log(
+		chalk.green("📁 Serverless function initialized at: ") +
+			chalk.cyan(targetDir)
+	);
+	console.log();
+
+	console.log(chalk.dim("━".repeat(60)));
+	console.log();
+
+	console.log(chalk.yellow("📖 Next Steps:"));
+	console.log();
+	console.log(
+		chalk.white("  1. Navigate to your project directory:") +
+			chalk.cyan(` cd ${path.basename(targetDir)}`)
+	);
+	console.log(
+		chalk.white("  2. Test your function locally: ") +
+			chalk.cyan("boltic serverless test")
+	);
+	console.log(
+		chalk.white("  3. Deploy your function by following the documentation")
+	);
+	console.log();
+
+	console.log(chalk.dim("━".repeat(60)));
+	console.log();
+
+	console.log(chalk.blue("📚 Documentation:"));
+	console.log(
+		chalk.underline.cyan(
+			"https://docs.boltic.io/docs/compute/serverless/launch-your-application"
+		)
+	);
+	console.log();
+}
+
+// ============================================================================
+// TEST COMMAND HELPERS
+// ============================================================================
+
+// Default handler files per language
+export const DEFAULT_HANDLER_FILES = {
+	nodejs: "handler.js",
+	python: "index.py",
+	golang: "handler.go",
+	java: "src/main/java/com/boltic/io/serverless/Handler.java",
+};
+
+// Generated wrapper file names
+export const GENERATED_FILES = {
+	nodejs: ["autogen_index.js"],
+	python: ["autogen_index.py"],
+	golang: ["autogen_index.go", "go.mod"],
+	java: [
+		"src/main/java/com/boltic/io/serverless/AutogenIndex.java",
+		"pom.xml",
+	],
+};
+
+// Required dependencies per language
+export const REQUIRED_DEPENDENCIES = {
+	nodejs: ["axios", "body-parser", "express@4.21.2", "nodemon", "winston"],
+	python: ["flask", "gunicorn", "waitress"],
+	golang: [],
+	java: [],
+};
+
+// Language detection files
+const LANGUAGE_DETECTION_FILES = {
+	nodejs: ["package.json"],
+	python: ["requirements.txt", "pyproject.toml"],
+	golang: ["go.mod"],
+	java: ["pom.xml", "build.gradle"],
+};
+
+/**
+ * Parse command line arguments for the test command
+ */
+export function parseTestArgs(args) {
+	const parsed = {
+		port: 5555,
+		handlerFile: null,
+		handlerFunction: "handler",
+		language: null,
+		directory: process.cwd(),
+		command: null,
+		retain: false,
+	};
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		const nextArg = args[i + 1];
+
+		if ((arg === "--port" || arg === "-p") && nextArg) {
+			parsed.port = parseInt(nextArg, 10);
+			i++;
+		} else if ((arg === "--handler-file" || arg === "-f") && nextArg) {
+			parsed.handlerFile = nextArg;
+			i++;
+		} else if ((arg === "--handler-function" || arg === "-u") && nextArg) {
+			parsed.handlerFunction = nextArg;
+			i++;
+		} else if ((arg === "--language" || arg === "-l") && nextArg) {
+			parsed.language = nextArg.toLowerCase();
+			i++;
+		} else if ((arg === "--directory" || arg === "-d") && nextArg) {
+			parsed.directory = path.resolve(nextArg);
+			i++;
+		} else if (arg === "--command" && nextArg) {
+			parsed.command = nextArg;
+			i++;
+		} else if (arg === "--retain" || arg === "-r") {
+			parsed.retain = true;
+		}
+	}
+
+	return parsed;
+}
+
+/**
+ * Load and parse boltic.yaml configuration
+ */
+export function loadBolticConfig(directory) {
+	const configPath = path.join(directory, "boltic.yaml");
+
+	if (!fs.existsSync(configPath)) {
+		return null;
+	}
+
+	try {
+		const configContent = fs.readFileSync(configPath, "utf8");
+		const config = yaml.load(configContent);
+		return config;
+	} catch (error) {
+		console.log(
+			chalk.yellow(
+				`⚠️  Warning: Could not parse boltic.yaml: ${error.message}`
+			)
+		);
+		return null;
+	}
+}
+
+/**
+ * Parse language from boltic.yaml language field (e.g., "nodejs/20" -> "nodejs")
+ */
+export function parseLanguageFromConfig(languageField) {
+	if (!languageField) return null;
+	// Handle format like "nodejs/20" or just "nodejs"
+	return languageField.split("/")[0].toLowerCase();
+}
+
+/**
+ * Parse handler config (e.g., "handler.handler" -> { file: "handler", function: "handler" })
+ */
+export function parseHandlerConfig(handlerField, language) {
+	if (!handlerField) {
+		return {
+			file: DEFAULT_HANDLER_FILES[language],
+			function: "handler",
+		};
+	}
+
+	const parts = handlerField.split(".");
+	if (parts.length >= 2) {
+		const functionName = parts.pop();
+		const fileBase = parts.join(".");
+
+		// For Java, the handler file is in a specific package structure
+		if (language === "java") {
+			// Convert "Handler" to full path "src/main/java/com/boltic/io/serverless/Handler.java"
+			return {
+				file: `src/main/java/com/boltic/io/serverless/${fileBase}.java`,
+				function: functionName,
+			};
+		}
+
+		// Add appropriate extension based on language
+		const extensions = {
+			nodejs: ".js",
+			python: ".py",
+			golang: ".go",
+		};
+
+		return {
+			file: fileBase + (extensions[language] || ""),
+			function: functionName,
+		};
+	}
+
+	return {
+		file: DEFAULT_HANDLER_FILES[language],
+		function: handlerField,
+	};
+}
+
+/**
+ * Auto-detect language from project files
+ */
+export function detectLanguage(directory) {
+	console.log(chalk.cyan("🔍 Scanning source code..."));
+
+	for (const [language, files] of Object.entries(LANGUAGE_DETECTION_FILES)) {
+		for (const file of files) {
+			if (fs.existsSync(path.join(directory, file))) {
+				console.log(chalk.green(`✓ Detected ${language} app`));
+				return language;
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Get the wrapper file content for NodeJS
+ */
+function getNodeJSWrapperContent(handlerFile, handlerFunction) {
+	// Keep .js extension for ESM imports (Node.js requires it)
+	const importPath = "./" + handlerFile;
+
+	return `// autogen_index.js - System Generated File
+// This file is automatically generated by the system.
+// DO NOT EDIT - This file will be deleted after testing.
+
+import express from 'express';
+import bodyParser from 'body-parser';
+import { ${handlerFunction} } from '${importPath}';
+
+const PORT = process.env.BOLTIC_APPLICATION_PORT || 8080;
+const DEV_MODE = process.env.BOLTIC_DEVELOPMENT_MODE || false;
+
+const app = express();
+
+app.disable('x-powered-by');
+app.use(bodyParser.urlencoded({ extended: false, limit: '25mb' }));
+app.use(bodyParser.json({ limit: '25mb' }));
+app.use(bodyParser.text({ limit: '25mb' }));
+app.use(bodyParser.raw({ limit: '25mb' }));
+
+const requestHandler = async (req, res) => {
+  try {
+    await ${handlerFunction}(req, res);
+    if (!res.headersSent) {
+      res.status(200).json({ message: "handler completed without sending a response" });
+    }
+  } catch (error) {
+    console.error("Error occurred while handling request:", error);
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+app.all('*', requestHandler);
+
+app.listen(PORT, () => {
+  if (DEV_MODE) {
+    console.log(\`Listening for events on port \${PORT} in development mode\`);
+  } else {
+    console.log(\`Listening for events\`);
+  }
+});
+`;
+}
+
+/**
+ * Get the wrapper file content for Python
+ */
+function getPythonWrapperContent(handlerFile, handlerFunction) {
+	// Remove .py extension for import
+	const importModule = handlerFile.replace(/\.py$/, "");
+
+	return `# autogen_index.py - System Generated File
+# This file is automatically generated by the system.
+# DO NOT EDIT - This file will be deleted after testing.
+
+from flask import Flask, request
+from ${importModule} import ${handlerFunction}
+import os
+from waitress import serve
+
+PORT = int(os.environ.get('BOLTIC_APPLICATION_PORT', 8080))
+DEV_MODE = bool(os.environ.get('BOLTIC_DEVELOPMENT_MODE', False))
+
+HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH']
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25 MB limit
+
+@app.route('/', methods=HTTP_METHODS, defaults={'path': ''})
+@app.route('/<path:path>', methods=HTTP_METHODS)
+def index(path):
+    return ${handlerFunction}(request)
+
+if __name__ == '__main__':
+    if DEV_MODE:
+        print('Listening for events on port {} in development mode'.format(PORT), flush=True)
+    else:
+        print('Listening for events', flush=True)
+    serve(app, host='0.0.0.0', port=PORT)
+`;
+}
+
+/**
+ * Get the wrapper file content for Golang
+ */
+function getGolangWrapperContent(handlerFunction) {
+	return `// autogen_index.go - System Generated File
+// This file is automatically generated by the system.
+// DO NOT EDIT - This file will be deleted after testing.
+
+package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+    "os"
+)
+
+func main() {
+    port := os.Getenv("BOLTIC_APPLICATION_PORT")
+    if port == "" {
+        port = "8080"
+    }
+    
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        ${handlerFunction}(w, r)
+    })
+    
+    devMode := os.Getenv("BOLTIC_DEVELOPMENT_MODE")
+    if devMode == "true" {
+        fmt.Printf("Listening for events on port %s in development mode\\n", port)
+    } else {
+        fmt.Println("Listening for events")
+    }
+    log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+`;
+}
+
+/**
+ * Get the wrapper file content for Java (Spring Boot)
+ */
+function getJavaWrapperContent(handlerFunction) {
+	return `// AutogenIndex.java - System Generated File
+// This file is automatically generated by the system.
+// DO NOT EDIT - This file will be deleted after testing.
+
+package com.boltic.io.serverless;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+
+@SpringBootApplication
+@RestController
+public class AutogenIndex {
+
+    @Autowired
+    private Handler handler;
+
+    public static void main(String[] args) {
+        String devMode = System.getenv("BOLTIC_DEVELOPMENT_MODE");
+        String port = System.getenv("BOLTIC_APPLICATION_PORT");
+        if (port == null) port = "8080";
+        
+        if ("true".equals(devMode)) {
+            System.out.println("Listening for events on port " + port + " in development mode");
+        } else {
+            System.out.println("Listening for events");
+        }
+        
+        SpringApplication.run(AutogenIndex.class, args);
+    }
+
+    @RequestMapping(value = "/**", method = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.PATCH})
+    public ResponseEntity<String> handleRequest(@RequestBody(required = false) String body, @RequestHeader java.util.Map<String, String> headers) {
+        return handler.${handlerFunction}(headers.getOrDefault("X-Http-Method", "GET"), body);
+    }
+}
+`;
+}
+
+/**
+ * Get go.mod content for Golang projects (generated during test)
+ */
+function getGoModContent(appName) {
+	return `module ${appName}
+
+go 1.22
+`;
+}
+
+/**
+ * Get pom.xml content for Java projects (generated during test)
+ */
+function getJavaPomXmlContent(appName) {
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.0</version>
+        <relativePath/>
+    </parent>
+    
+    <groupId>com.boltic.io</groupId>
+    <artifactId>${appName}</artifactId>
+    <version>1.0.0</version>
+    <name>${appName}</name>
+    <description>Boltic Serverless Function</description>
+    
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+    
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+`;
+}
+
+/**
+ * Generate wrapper file content based on language
+ */
+export function generateWrapperContent(language, handlerFile, handlerFunction) {
+	switch (language) {
+		case "nodejs":
+			return getNodeJSWrapperContent(handlerFile, handlerFunction);
+		case "python":
+			return getPythonWrapperContent(handlerFile, handlerFunction);
+		case "golang":
+			return getGolangWrapperContent(handlerFunction);
+		case "java":
+			return getJavaWrapperContent(handlerFunction);
+		default:
+			return null;
+	}
+}
+
+/**
+ * Generate all test files for a language
+ * Returns an array of { path, content } objects
+ */
+export function generateTestFiles(
+	language,
+	handlerFile,
+	handlerFunction,
+	appName
+) {
+	const files = [];
+
+	// Generate wrapper file
+	const wrapperContent = generateWrapperContent(
+		language,
+		handlerFile,
+		handlerFunction
+	);
+	if (wrapperContent) {
+		files.push({
+			path: GENERATED_FILES[language][0],
+			content: wrapperContent,
+		});
+	}
+
+	// Generate additional files for Golang
+	if (language === "golang") {
+		files.push({
+			path: "go.mod",
+			content: getGoModContent(appName),
+		});
+	}
+
+	// Generate additional files for Java
+	if (language === "java") {
+		files.push({
+			path: "pom.xml",
+			content: getJavaPomXmlContent(appName),
+		});
+	}
+
+	return files;
+}
+
+/**
+ * Get the start command for the server based on language
+ */
+export function getStartCommand(language, directory, customCommand) {
+	if (customCommand) {
+		return {
+			command: customCommand.split(" ")[0],
+			args: customCommand.split(" ").slice(1),
+		};
+	}
+
+	// Check if Python venv exists
+	const venvPython = path.join(directory, ".venv", "bin", "python3");
+	const usePythonVenv = fs.existsSync(venvPython);
+
+	const commands = {
+		nodejs: {
+			command: "npx",
+			args: ["nodemon", GENERATED_FILES.nodejs[0]],
+		},
+		python: {
+			command: usePythonVenv ? venvPython : "python3",
+			args: [GENERATED_FILES.python[0]],
+		},
+		golang: {
+			command: "go",
+			args: ["run", "."],
+		},
+		java: {
+			// Check if it's Maven or Gradle
+			command: fs.existsSync(path.join(directory, "pom.xml"))
+				? "mvn"
+				: "gradle",
+			args: fs.existsSync(path.join(directory, "pom.xml"))
+				? ["spring-boot:run", "-f", "pom.xml"]
+				: ["bootRun", "-b", "build.gradle"],
+		},
+	};
+
+	return commands[language] || { command: "", args: [] };
+}
+
+/**
+ * Check if NodeJS dependencies are installed
+ */
+export function checkNodeDependencies(directory, dependencies) {
+	const missingDeps = [];
+
+	for (const dep of dependencies) {
+		// Remove version specifier for checking
+		const depName = dep.split("@")[0];
+		const depPath = path.join(directory, "node_modules", depName);
+
+		if (!fs.existsSync(depPath)) {
+			missingDeps.push(dep);
+		}
+	}
+
+	return missingDeps;
+}
+
+/**
+ * Check if Python dependencies are installed
+ * Returns array of missing dependencies
+ */
+export function checkPythonDependencies(dependencies, execSync) {
+	const missingDeps = [];
+
+	for (const dep of dependencies) {
+		try {
+			execSync(`python3 -c "import ${dep}"`, { stdio: "ignore" });
+		} catch {
+			missingDeps.push(dep);
+		}
+	}
+
+	return missingDeps;
+}
+
+/**
+ * Get environment variables for the test server
+ */
+export function getTestEnvironmentVariables(port, language) {
+	const env = {
+		...process.env,
+		BOLTIC_DEVELOPMENT_MODE: "true",
+		BOLTIC_APPLICATION_PORT: String(port),
+	};
+
+	// Python-specific: disable output buffering
+	if (language === "python") {
+		env.PYTHONUNBUFFERED = "1";
+	}
+
+	return env;
+}
+
+/**
+ * Clean up generated files
+ */
+export function cleanupGeneratedFiles(directory, language, retain) {
+	if (retain) {
+		console.log(
+			chalk.yellow(
+				"\n⚠️  Retaining auto-generated test files. Please delete them manually before deployment."
+			)
+		);
+		return;
+	}
+
+	const filesToDelete = GENERATED_FILES[language] || [];
+
+	console.log(chalk.cyan("\n🧹 Cleaning up generated files..."));
+
+	for (const file of filesToDelete) {
+		const filePath = path.join(directory, file);
+		if (fs.existsSync(filePath)) {
+			try {
+				fs.unlinkSync(filePath);
+				console.log(chalk.dim(`   Deleted: ${file}`));
+			} catch (error) {
+				console.log(
+					chalk.yellow(
+						`   ⚠️  Could not delete ${file}: ${error.message}`
+					)
+				);
+			}
+		}
+	}
+}
+
+/**
+ * Display test server startup message
+ */
+export function displayTestStartupMessage(port) {
+	console.log("\n" + chalk.bgCyan.black(" 🧪 LOCAL TEST SERVER ") + "\n");
+	console.log(
+		chalk.green("🚀 Starting local test server on ") +
+			chalk.bold.cyan(`http://localhost:${port}`)
+	);
+	console.log();
+	console.log(chalk.dim("━".repeat(60)));
+	console.log(chalk.dim("  Press Ctrl+C to stop the server"));
+	console.log(chalk.dim("━".repeat(60)));
+	console.log();
+}
+
+// ============================================================================
+// PUBLISH COMMAND HELPERS
+// ============================================================================
+
+/**
+ * Parse command line arguments for the publish command
+ */
+export function parsePublishArgs(args) {
+	const parsed = {
+		directory: process.cwd(),
+	};
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		const nextArg = args[i + 1];
+
+		if ((arg === "--directory" || arg === "-d") && nextArg) {
+			parsed.directory = path.resolve(nextArg);
+			i++;
+		}
+	}
+
+	return parsed;
+}
+
+/**
+ * Read handler file content based on language
+ */
+export function readHandlerFile(directory, language, config) {
+	const handlerConfig = parseHandlerConfig(config?.handler, language);
+	const handlerPath = path.join(directory, handlerConfig.file);
+
+	if (!fs.existsSync(handlerPath)) {
+		return null;
+	}
+
+	return fs.readFileSync(handlerPath, "utf8");
+}
+
+/**
+ * Build the serverless publish payload
+ */
+export function buildPublishPayload(name, language, code) {
+	return {
+		Name: name,
+		Runtime: "code",
+		Env: {},
+		PortMap: null,
+		Scaling: {
+			AutoStop: false,
+			Min: 1,
+			Max: 1,
+			MaxIdleTime: 0,
+		},
+		Resources: {
+			CPU: 0.1,
+			MemoryMB: 128,
+			MemoryMaxMB: 128,
+		},
+		CodeOpts: {
+			Language: language,
+			Packages: [],
+			Code: code,
+		},
+	};
+}
+
+/**
+ * Display publish success message
+ */
+export function displayPublishSuccessMessage(name, response) {
+	console.log("\n" + chalk.bgGreen.black(" ✓ PUBLISHED ") + "\n");
+	console.log(chalk.green("🚀 Serverless function published successfully!"));
+	console.log();
+	console.log(chalk.cyan("   Name: ") + chalk.white(name));
+	if (response?.data?.ID) {
+		console.log(chalk.cyan("   ID: ") + chalk.white(response.data.ID));
+	}
+	console.log();
+	console.log(chalk.dim("━".repeat(60)));
+	console.log();
+	console.log(chalk.blue("📚 Documentation:"));
+	console.log(
+		chalk.underline.cyan(
+			"https://docs.boltic.io/docs/compute/serverless/launch-your-application"
+		)
+	);
+	console.log();
+}

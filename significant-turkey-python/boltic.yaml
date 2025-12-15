@@ -1,0 +1,8 @@
+app: "significant-turkey-python"
+region: "asia-south1"
+handler: "index.handler"
+language: "python/3"
+
+build:
+  builtin: dockerfile
+  ignorefile: .gitignore
