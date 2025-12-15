@@ -1,6 +1,6 @@
 const environments = {
 	fcz0: {
-		name: "fcz0",
+		name: "bolt",
 		consoleUrl: "https://api.central.sit.fyndx1.de",
 		apiUrl: "https://api.boltic.sit.fyndx1.de/asia-south1",
 		loginUrl: "https://central.sit.fyndx1.de",
@@ -9,7 +9,7 @@ const environments = {
 		frontendUrl: "https://central.sit.fyndx1.de/boltic/asia-south1",
 	},
 	fcz5: {
-		name: "fcz5",
+		name: "bolt",
 		consoleUrl: "https://api.console.uat.fyndx1.de",
 		apiUrl: "https://api.boltic.uat.fyndx1.de/asia-south1",
 		loginUrl: "https://console.uat.fyndx1.de",
