@@ -34,7 +34,7 @@ const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 	try {
 		const axiosOptions = {
 			method: "get",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integration-groups`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integration-groups`,
 			params: {
 				page: 1,
 				per_page: 999,
@@ -67,7 +67,7 @@ const listAllIntegrations = async (apiUrl, token, accountId, session) => {
 	try {
 		const axiosOptions = {
 			method: "get",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integrations`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations`,
 			params: {
 				page: 1,
 				per_page: 999,
@@ -106,7 +106,7 @@ const saveIntegration = async (
 	try {
 		const response = await axios({
 			method: "post",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integrations`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations`,
 			data: integration,
 			headers: {
 				"Content-Type": "application/json",
@@ -134,7 +134,7 @@ const editIntegration = async (apiUrl, token, accountId, session, payload) => {
 	try {
 		const response = await axios({
 			method: "post",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integrations/${id}/edit`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}/edit`,
 			data: payload,
 			headers: {
 				"Content-Type": "application/json",
@@ -169,7 +169,7 @@ const updateIntegration = async (
 		const { id, ...rest } = integration;
 		const response = await axios({
 			method: "patch",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integrations/${id}`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}`,
 			data: rest,
 			headers: {
 				"Content-Type": "application/json",
@@ -203,7 +203,7 @@ const getIntegrationById = async (
 	try {
 		const response = await axios({
 			method: "get",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integrations/${integrationId}`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integrationId}`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
@@ -236,7 +236,7 @@ const getAuthenticationByIntegrationId = async (
 	try {
 		const response = await axios({
 			method: "get",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}integrations/${integrationId}/authentication`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}integrations/${integrationId}/authentication`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
@@ -269,7 +269,7 @@ const getWebhooksByIntegrationId = async (
 	try {
 		const response = await axios({
 			method: "get",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}integrations/${integrationId}/webhooks`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}integrations/${integrationId}/webhooks`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
@@ -301,7 +301,7 @@ const getConfigurationByIntegrationId = async (
 	try {
 		const response = await axios({
 			method: "get",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}integrations/${integrationId}/configuration`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}integrations/${integrationId}/configuration`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
@@ -333,7 +333,7 @@ const syncIntegration = async (
 	try {
 		const response = await axios({
 			method: "post",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integrations/${integration.integration_id}/deploy`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integration.integration_id}/deploy`,
 			data: integration,
 			headers: {
 				"Content-Type": "application/json",
@@ -366,7 +366,7 @@ const sendIntegrationForReview = async (
 	try {
 		const response = await axios({
 			method: "post",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integration-reviews`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integration-reviews`,
 			data: integration,
 			headers: {
 				"Content-Type": "application/json",
@@ -395,7 +395,7 @@ const purgeCache = async (apiUrl, token, accountId, session, integration) => {
 	try {
 		const response = await axios({
 			method: "post",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integrations/${integration_id}/cache`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integration_id}/cache`,
 			data: {},
 			headers: {
 				"Content-Type": "application/json",
@@ -422,7 +422,7 @@ const pullIntegration = async (apiUrl, token, accountId, session, id) => {
 	try {
 		const response = await axios({
 			method: "get",
-			url: `${apiUrl}/service/panel/temporal/v1.0/${accountId}/integrations/${id}/pull`,
+			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}/pull`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
@@ -462,7 +462,7 @@ const uploadFileToCloud = async (
 		form.append("files", fs.createReadStream(filePath));
 
 		const response = await axios.post(
-			`${apiUrl}/service/panel/temporal/v1.0/${accountId}/utility/upload`,
+			`${apiUrl}/service/panel/automation/v1.0/${accountId}/utility/upload`,
 			form,
 			{
 				headers: {

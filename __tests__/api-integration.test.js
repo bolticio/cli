@@ -102,7 +102,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "get",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integration-groups",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integration-groups",
 				params: { page: 1, per_page: 999 },
 				headers: {
 					"Content-Type": "application/json",
@@ -199,7 +199,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "get",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integrations",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations",
 				params: { page: 1, per_page: 999 },
 				headers: {
 					"Content-Type": "application/json",
@@ -261,7 +261,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "post",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integrations",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations",
 				data: validParams.integration,
 				headers: {
 					"Content-Type": "application/json",
@@ -325,7 +325,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "post",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integrations/1/edit",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/edit",
 				data: validParams.payload,
 				headers: {
 					"Content-Type": "application/json",
@@ -393,7 +393,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "patch",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integrations/1",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1",
 				data: { name: "Updated Integration", description: "Test" }, // id should be excluded
 				headers: {
 					"Content-Type": "application/json",
@@ -457,7 +457,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "get",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integrations/1",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: "Bearer token123",
@@ -520,7 +520,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "post",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integrations/1/deploy",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/deploy",
 				data: validParams.integration,
 				headers: {
 					"Content-Type": "application/json",
@@ -584,7 +584,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "post",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integration-reviews",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integration-reviews",
 				data: validParams.integration,
 				headers: {
 					"Content-Type": "application/json",
@@ -648,7 +648,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "post",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integrations/1/cache",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/cache",
 				data: {},
 				headers: {
 					"Content-Type": "application/json",
@@ -712,7 +712,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "get",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123/integrations/1/pull",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/pull",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: "Bearer token123",
@@ -782,7 +782,7 @@ describe("Integration API", () => {
 			expect(MockFormDataClass).toHaveBeenCalled();
 			expect(mockFormData.append).toHaveBeenCalledWith("files", {});
 			expect(mockAxios.post).toHaveBeenCalledWith(
-				"https://api.test.com/service/panel/temporal/v1.0/account123/utility/upload",
+				"https://api.test.com/service/panel/automation/v1.0/account123/utility/upload",
 				mockFormData,
 				{
 					headers: {
@@ -873,7 +873,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "get",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123integrations/1/authentication",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123integrations/1/authentication",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: "Bearer token123",
@@ -936,7 +936,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "get",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123integrations/1/webhooks",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123integrations/1/webhooks",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: "Bearer token123",
@@ -1001,7 +1001,7 @@ describe("Integration API", () => {
 
 			expect(mockAxios).toHaveBeenCalledWith({
 				method: "get",
-				url: "https://api.test.com/service/panel/temporal/v1.0/account123integrations/1/configuration",
+				url: "https://api.test.com/service/panel/automation/v1.0/account123integrations/1/configuration",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: "Bearer token123",
