@@ -6,6 +6,7 @@ import EnvironmentCommands from "./commands/env.js";
 import IntegrationCommands from "./commands/integration.js";
 import McpCommands from "./commands/mcp.js";
 import AuthCommands from "./commands/login.js";
+import ServerlessCommands from "./commands/serverless.js";
 
 // Create a CLI module with functional approach
 import { findSimilarCommands } from "./helper/command-suggestions.js";
@@ -42,6 +43,10 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 		version: {
 			description: "Display the version of the CLI.",
 			action: () => showVersion(),
+		},
+		serverless: {
+			description: "Manage serverless (create, list, test)",
+			action: (args) => handleServerless(args),
 		},
 	};
 
@@ -174,6 +179,9 @@ async function handleMcp(args) {
 	await McpCommands.execute(args);
 }
 
+async function handleServerless(args) {
+	await ServerlessCommands.execute(args);
+}
 async function showVersion() {
 	let version = "1.0.0";
 	try {
