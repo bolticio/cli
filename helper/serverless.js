@@ -86,6 +86,28 @@ region: "${templateContext.Region}"
 handler: "${HANDLER_MAPPING[language]}"
 language: "${templateContext.Language}"
 
+serverlessConfig:
+  Name: "${templateContext.AppSlug}"
+  Description: ""
+  Runtime: "code"
+  # Environment variables for your serverless function
+  # To add env variables, replace {} with key-value pairs like:
+  # Env:
+  #   API_KEY: "your-api-key"
+  Env: {}
+  PortMap: []
+  Scaling:
+    AutoStop: false
+    Min: 1
+    Max: 1
+    MaxIdleTime: 300
+  Resources:
+    CPU: 0.1
+    MemoryMB: 128
+    MemoryMaxMB: 128
+  Timeout: 60
+  Validations: null
+
 build:
   builtin: dockerfile
   ignorefile: .gitignore
@@ -695,6 +717,97 @@ function getJavaPomXmlContent(appName) {
 }
 
 /**
+ * Detect the exported handler function name from the code
+ * This handles cases where the user might have renamed the function (e.g., handler -> handler1)
+ */
+export function detectHandlerFunctionFromCode(code, language) {
+	if (!code) return null;
+
+	switch (language) {
+		case "nodejs": {
+			// Match: export const <name> = or export function <name>( or export async function <name>(
+			const exportConstMatch = code.match(/export\s+const\s+(\w+)\s*=/);
+			const exportFunctionMatch = code.match(
+				/export\s+(async\s+)?function\s+(\w+)\s*\(/
+			);
+			const exportDefaultMatch = code.match(
+				/export\s+default\s+(async\s+)?function\s+(\w+)\s*\(/
+			);
+
+			if (exportConstMatch) return exportConstMatch[1];
+			if (exportFunctionMatch) return exportFunctionMatch[2];
+			if (exportDefaultMatch) return exportDefaultMatch[2];
+
+			// Also check for module.exports pattern
+			const moduleExportsMatch = code.match(
+				/module\.exports\s*=\s*{\s*(\w+)/
+			);
+			if (moduleExportsMatch) return moduleExportsMatch[1];
+
+			return null;
+		}
+		case "python": {
+			// Match: def <name>( at the start of a line (top-level function)
+			// We want to find the main handler function, typically the first or only def at top level
+			const defMatches = code.match(/^def\s+(\w+)\s*\(/gm);
+			if (defMatches && defMatches.length > 0) {
+				// Get the first function name
+				const firstMatch = defMatches[0].match(/^def\s+(\w+)\s*\(/);
+				if (firstMatch) return firstMatch[1];
+			}
+			return null;
+		}
+		case "golang": {
+			// Match: func <Name>( where Name starts with uppercase (exported)
+			// Look for handler-like functions that take http.ResponseWriter and *http.Request
+			const funcMatches = code.match(
+				/func\s+([A-Z]\w*)\s*\([^)]*http\.ResponseWriter/g
+			);
+			if (funcMatches && funcMatches.length > 0) {
+				const firstMatch = funcMatches[0].match(
+					/func\s+([A-Z]\w*)\s*\(/
+				);
+				if (firstMatch) return firstMatch[1];
+			}
+			// Fallback: any exported function (starts with uppercase)
+			const anyExportedMatch = code.match(/func\s+([A-Z]\w*)\s*\(/);
+			if (anyExportedMatch) return anyExportedMatch[1];
+			return null;
+		}
+		case "java": {
+			// Match: public <return_type> <name>( - typically looking for handler method
+			// Skip common methods like main, constructor
+			const methodMatches = code.match(
+				/public\s+\w+(?:<[^>]+>)?\s+(\w+)\s*\([^)]*\)/g
+			);
+			if (methodMatches) {
+				for (const match of methodMatches) {
+					const methodNameMatch = match.match(
+						/public\s+\w+(?:<[^>]+>)?\s+(\w+)\s*\(/
+					);
+					if (methodNameMatch) {
+						const methodName = methodNameMatch[1];
+						// Skip constructor, main, and common Spring methods
+						if (
+							!["main", "run", "configure", "init"].includes(
+								methodName.toLowerCase()
+							) &&
+							!methodName.match(/^[A-Z]/)
+						) {
+							// Skip if looks like constructor
+							return methodName;
+						}
+					}
+				}
+			}
+			return null;
+		}
+		default:
+			return null;
+	}
+}
+
+/**
  * Generate wrapper file content based on language
  */
 export function generateWrapperContent(language, handlerFile, handlerFunction) {
@@ -922,9 +1035,14 @@ export function parsePublishArgs(args) {
 		if ((arg === "--directory" || arg === "-d") && nextArg) {
 			parsed.directory = path.resolve(nextArg);
 			i++;
+		} else if (!arg.startsWith("-") && !parsed._dirSet) {
+			// Accept positional argument as directory (e.g., `boltic serverless publish ./my-project`)
+			parsed.directory = path.resolve(arg);
+			parsed._dirSet = true;
 		}
 	}
 
+	delete parsed._dirSet;
 	return parsed;
 }
 
@@ -945,23 +1063,57 @@ export function readHandlerFile(directory, language, config) {
 /**
  * Build the serverless publish payload
  */
-export function buildPublishPayload(name, language, code) {
+export function buildPublishPayload(name, language, code, serverlessConfig) {
 	return {
 		Name: name,
 		Runtime: "code",
-		Env: {},
+		Env: serverlessConfig?.Env || {},
 		PortMap: null,
-		Scaling: {
+		Scaling: serverlessConfig?.Scaling || {
 			AutoStop: false,
 			Min: 1,
 			Max: 1,
-			MaxIdleTime: 0,
+			MaxIdleTime: 300,
 		},
-		Resources: {
+		Resources: serverlessConfig?.Resources || {
 			CPU: 0.1,
 			MemoryMB: 128,
 			MemoryMaxMB: 128,
 		},
+		Timeout: serverlessConfig?.Timeout || 60,
+		Validations: serverlessConfig?.Validations || null,
+		CodeOpts: {
+			Language: language,
+			Packages: [],
+			Code: code,
+		},
+	};
+}
+
+/**
+ * Build payload for updating an existing serverless function
+ * Uses serverlessConfig from boltic.yaml and adds CodeOpts
+ */
+export function buildUpdatePayload(serverlessConfig, language, code) {
+	return {
+		Name: serverlessConfig?.Name || "",
+		Description: serverlessConfig?.Description || "",
+		Runtime: serverlessConfig?.Runtime || "code",
+		Env: serverlessConfig?.Env || {},
+		PortMap: serverlessConfig?.PortMap || [],
+		Scaling: serverlessConfig?.Scaling || {
+			AutoStop: false,
+			Min: 1,
+			Max: 1,
+			MaxIdleTime: 300,
+		},
+		Resources: serverlessConfig?.Resources || {
+			CPU: 0.1,
+			MemoryMB: 128,
+			MemoryMaxMB: 128,
+		},
+		Timeout: serverlessConfig?.Timeout || 60,
+		Validations: serverlessConfig?.Validations || null,
 		CodeOpts: {
 			Language: language,
 			Packages: [],
@@ -973,13 +1125,20 @@ export function buildPublishPayload(name, language, code) {
 /**
  * Display publish success message
  */
-export function displayPublishSuccessMessage(name, response) {
-	console.log("\n" + chalk.bgGreen.black(" ✓ PUBLISHED ") + "\n");
-	console.log(chalk.green("🚀 Serverless function published successfully!"));
+export function displayPublishSuccessMessage(name, response, isUpdate = false) {
+	const action = isUpdate ? "UPDATED" : "PUBLISHED";
+	const emoji = isUpdate ? "✏️" : "🚀";
+
+	console.log("\n" + chalk.bgGreen.black(` ✓ ${action} `) + "\n");
+	console.log(
+		chalk.green(
+			`${emoji} Serverless function ${action.toLowerCase()} successfully!`
+		)
+	);
 	console.log();
 	console.log(chalk.cyan("   Name: ") + chalk.white(name));
-	if (response?.data?.ID) {
-		console.log(chalk.cyan("   ID: ") + chalk.white(response.data.ID));
+	if (response?.ID) {
+		console.log(chalk.cyan("   ID: ") + chalk.white(response.ID));
 	}
 	console.log();
 	console.log(chalk.dim("━".repeat(60)));
@@ -989,6 +1148,140 @@ export function displayPublishSuccessMessage(name, response) {
 		chalk.underline.cyan(
 			"https://docs.boltic.io/docs/compute/serverless/launch-your-application"
 		)
+	);
+	console.log();
+}
+
+// ============================================================================
+// PULL COMMAND HELPERS
+// ============================================================================
+
+/**
+ * Get boltic.yaml content for pulled serverless (includes serverlessId and serverlessConfig)
+ */
+export function getPulledBolticYamlContent(serverlessData) {
+	const config = serverlessData.Config;
+	const language = config.CodeOpts?.Language || "nodejs/20";
+	const handler =
+		HANDLER_MAPPING[language.split("/")[0]] || "handler.handler";
+
+	// Build serverlessConfig object
+	const serverlessConfig = {
+		Name: config.Name || "",
+		Description: config.Description || "",
+		Runtime: config.Runtime || "code",
+		Env: config.Env || {},
+		PortMap: config.PortMap || [],
+		Scaling: config.Scaling || {
+			AutoStop: false,
+			Min: 1,
+			Max: 1,
+			MaxIdleTime: 300,
+		},
+		Resources: config.Resources || {
+			CPU: 0.1,
+			MemoryMB: 128,
+			MemoryMaxMB: 128,
+		},
+		Timeout: config.Timeout || 60,
+		Validations: config.Validations || null,
+	};
+
+	// Format Env as YAML
+	const envYaml =
+		Object.keys(serverlessConfig.Env).length > 0
+			? Object.entries(serverlessConfig.Env)
+					.map(([key, value]) => `    ${key}: "${value}"`)
+					.join("\n")
+			: null;
+
+	return `app: "${config.Name}"
+region: "${serverlessData.RegionID || "asia-south1"}"
+handler: "${handler}"
+language: "${language}"
+serverlessId: "${serverlessData.ID}"
+
+serverlessConfig:
+  Name: "${serverlessConfig.Name}"
+  Description: "${serverlessConfig.Description}"
+  Runtime: "${serverlessConfig.Runtime}"
+  Env: ${envYaml ? `\n${envYaml}` : "{}"}
+  PortMap: ${JSON.stringify(serverlessConfig.PortMap)}
+  Scaling:
+    AutoStop: ${serverlessConfig.Scaling.AutoStop}
+    Min: ${serverlessConfig.Scaling.Min}
+    Max: ${serverlessConfig.Scaling.Max}
+    MaxIdleTime: ${serverlessConfig.Scaling.MaxIdleTime}
+  Resources:
+    CPU: ${serverlessConfig.Resources.CPU}
+    MemoryMB: ${serverlessConfig.Resources.MemoryMB}
+    MemoryMaxMB: ${serverlessConfig.Resources.MemoryMaxMB}
+  Timeout: ${serverlessConfig.Timeout}
+  Validations: ${serverlessConfig.Validations === null ? "null" : JSON.stringify(serverlessConfig.Validations)}
+
+build:
+  builtin: dockerfile
+  ignorefile: .gitignore
+`;
+}
+
+/**
+ * Create folder structure for pulled serverless
+ */
+export function createPulledServerlessFiles(targetDir, serverlessData) {
+	const config = serverlessData.Config;
+	const language = config.CodeOpts?.Language?.split("/")[0] || "nodejs";
+
+	// Create boltic.yaml
+	const bolticYamlPath = path.join(targetDir, "boltic.yaml");
+	const bolticYamlContent = getPulledBolticYamlContent(serverlessData);
+	fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
+
+	// Create handler file with the code from the serverless
+	const handlerRelativePath = getHandlerFilePath(language);
+	const handlerPath = path.join(targetDir, handlerRelativePath);
+
+	// Create directories if needed (for Java)
+	const handlerDir = path.dirname(handlerPath);
+	if (!fs.existsSync(handlerDir)) {
+		fs.mkdirSync(handlerDir, { recursive: true });
+	}
+
+	// Use the code from the serverless or default handler content
+	const handlerContent = config.CodeOpts?.Code || getHandlerContent(language);
+	fs.writeFileSync(handlerPath, handlerContent, "utf8");
+
+	return {
+		bolticYamlPath,
+		handlerPath,
+	};
+}
+
+/**
+ * Display pull success message
+ */
+export function displayPullSuccessMessage(name, targetDir) {
+	console.log("\n" + chalk.bgGreen.black(" ✓ PULLED ") + "\n");
+	console.log(chalk.green("📥 Serverless function pulled successfully!"));
+	console.log();
+	console.log(chalk.cyan("   Name: ") + chalk.white(name));
+	console.log(chalk.cyan("   Location: ") + chalk.white(targetDir));
+	console.log();
+	console.log(chalk.dim("━".repeat(60)));
+	console.log();
+	console.log(chalk.yellow("📖 Next Steps:"));
+	console.log();
+	console.log(
+		chalk.white("  1. Navigate to your project directory:") +
+			chalk.cyan(` cd ${path.basename(targetDir)}`)
+	);
+	console.log(
+		chalk.white("  2. Test your function locally: ") +
+			chalk.cyan("boltic serverless test")
+	);
+	console.log(
+		chalk.white("  3. Make changes and publish: ") +
+			chalk.cyan("boltic serverless publish")
 	);
 	console.log();
 }

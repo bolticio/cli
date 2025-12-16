@@ -77,8 +77,7 @@ const pullServerless = async (apiUrl, token, accountId, session, id) => {
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
-
-		return response;
+		return response?.data;
 	} catch (error) {
 		handleError(error);
 	}
@@ -94,26 +93,10 @@ const publishServerless = async (apiUrl, token, session, payload) => {
 		process.exit(1);
 	}
 
-	// Debug logging
-	console.log("\x1b[36m[DEBUG] API URL:\x1b[0m", apiUrl);
-	console.log(
-		"\x1b[36m[DEBUG] Token (first 20 chars):\x1b[0m",
-		token?.substring(0, 20) + "..."
-	);
-	console.log(
-		"\x1b[36m[DEBUG] Session (first 20 chars):\x1b[0m",
-		session?.substring(0, 20) + "..."
-	);
-	console.log("\x1b[36m[DEBUG] Payload Name:\x1b[0m", payload?.Name);
-	console.log(
-		"\x1b[36m[DEBUG] Payload Language:\x1b[0m",
-		payload?.CodeOpts?.Language
-	);
-
 	try {
 		const axiosOptions = {
 			method: "post",
-			url: `${apiUrl}/service/panel/serverless/v1.0/apps`,
+			url: `https://asia-south1.api.boltic.io/service/panel/serverless/v1.0/apps`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
@@ -123,45 +106,56 @@ const publishServerless = async (apiUrl, token, session, payload) => {
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};
 
-		console.log("\x1b[36m[DEBUG] Request URL:\x1b[0m", axiosOptions.url);
-		console.log(
-			"\x1b[36m[DEBUG] Request Headers:\x1b[0m",
-			JSON.stringify(axiosOptions.headers, null, 2)
-		);
-
 		const response = await axios(axiosOptions);
 		logApi(axiosOptions.method, axiosOptions.url, response.status);
-		console.log("\x1b[32m[DEBUG] Response Status:\x1b[0m", response.status);
-		console.log(
-			"\x1b[32m[DEBUG] Response Data:\x1b[0m",
-			JSON.stringify(response.data, null, 2)
-		);
 		return response.data;
 	} catch (error) {
-		console.error("\x1b[31m[DEBUG] Error occurred:\x1b[0m");
-		console.error("\x1b[31m[DEBUG] Error Message:\x1b[0m", error.message);
-		if (error.response) {
-			console.error(
-				"\x1b[31m[DEBUG] Response Status:\x1b[0m",
-				error.response.status
-			);
-			console.error(
-				"\x1b[31m[DEBUG] Response Data:\x1b[0m",
-				JSON.stringify(error.response.data, null, 2)
-			);
-			console.error(
-				"\x1b[31m[DEBUG] Response Headers:\x1b[0m",
-				JSON.stringify(error.response.headers, null, 2)
-			);
-		}
-		if (error.request) {
-			console.error(
-				"\x1b[31m[DEBUG] Request was made but no response received\x1b[0m"
-			);
-		}
 		handleError(error);
 		return null;
 	}
 };
 
-export { listAllServerless, pullServerless, publishServerless };
+const updateServerless = async (
+	apiUrl,
+	token,
+	session,
+	serverlessId,
+	payload
+) => {
+	if (!token || !session) {
+		console.error(
+			"\x1b[31mError:\x1b[0m Authentication credentials are required."
+		);
+		console.log("\n🔹 Please log in first using:");
+		console.log("\x1b[32m$ boltic login\x1b[0m\n");
+		process.exit(1);
+	}
+
+	try {
+		const axiosOptions = {
+			method: "put",
+			url: `https://asia-south1.api.boltic.io/service/panel/serverless/v1.0/apps/${serverlessId}`,
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+				Cookie: session,
+			},
+			data: payload,
+			httpsAgent: getHttpsAgentForUrl(apiUrl),
+		};
+
+		const response = await axios(axiosOptions);
+		logApi(axiosOptions.method, axiosOptions.url, response.status);
+		return response.data;
+	} catch (error) {
+		handleError(error);
+		return null;
+	}
+};
+
+export {
+	listAllServerless,
+	pullServerless,
+	publishServerless,
+	updateServerless,
+};

@@ -24,18 +24,22 @@ import {
 	generateTestFiles,
 	getStartCommand,
 	checkNodeDependencies,
-	checkPythonDependencies,
 	getTestEnvironmentVariables,
 	cleanupGeneratedFiles,
 	displayTestStartupMessage,
 	readHandlerFile,
 	buildPublishPayload,
+	buildUpdatePayload,
 	displayPublishSuccessMessage,
+	createPulledServerlessFiles,
+	displayPullSuccessMessage,
+	detectHandlerFunctionFromCode,
 } from "../helper/serverless.js";
 import {
 	listAllServerless,
 	pullServerless,
 	publishServerless,
+	updateServerless,
 } from "../api/serverless.js";
 
 // Define commands and their descriptions
@@ -243,6 +247,8 @@ async function handlePublish(args = []) {
 		// Step 3: Get app name and language from config
 		const appName = config.app;
 		const language = config.language; // e.g., "nodejs/20"
+		const serverlessId = config.serverlessId;
+		const serverlessConfig = config.serverlessConfig;
 
 		if (!appName) {
 			console.error(chalk.red("\n❌ App name not found in boltic.yaml"));
@@ -256,6 +262,17 @@ async function handlePublish(args = []) {
 
 		console.log(chalk.cyan("📋 App Name: ") + chalk.white(appName));
 		console.log(chalk.cyan("📋 Language: ") + chalk.white(language));
+
+		// Check if this is an update (serverlessId exists)
+		const isUpdate = !!serverlessId;
+		if (isUpdate) {
+			console.log(
+				chalk.cyan("📋 Serverless ID: ") + chalk.white(serverlessId)
+			);
+			console.log(
+				chalk.yellow("   (Updating existing serverless function)")
+			);
+		}
 
 		// Step 4: Read handler file
 		const languageBase = parseLanguageFromConfig(language);
@@ -275,27 +292,49 @@ async function handlePublish(args = []) {
 
 		console.log(chalk.cyan("📄 Handler code loaded successfully"));
 
-		// Step 5: Build payload
-		const payload = buildPublishPayload(appName, language, code);
-
-		// Step 6: Get auth credentials
+		// Step 5: Get auth credentials
 		const { apiUrl, token, session } = await getCurrentEnv();
 
-		// Step 7: Publish to API
-		console.log(chalk.cyan("\n📤 Publishing serverless function..."));
+		let response;
 
-		const response = await publishServerless(
-			apiUrl,
-			token,
-			session,
-			payload
-		);
+		if (isUpdate) {
+			// Update existing serverless function
+			const payload = buildUpdatePayload(
+				serverlessConfig,
+				language,
+				code
+			);
+
+			console.log(chalk.cyan("\n📤 Updating serverless function..."));
+
+			response = await updateServerless(
+				apiUrl,
+				token,
+				session,
+				serverlessId,
+				payload
+			);
+		} else {
+			// Create new serverless function
+			const payload = buildPublishPayload(
+				appName,
+				language,
+				code,
+				serverlessConfig
+			);
+
+			console.log(chalk.cyan("\n📤 Publishing serverless function..."));
+
+			response = await publishServerless(apiUrl, token, session, payload);
+		}
 
 		if (response) {
-			displayPublishSuccessMessage(appName, response);
+			displayPublishSuccessMessage(appName, response, isUpdate);
 		} else {
 			console.error(
-				chalk.red("\n❌ Failed to publish serverless function")
+				chalk.red(
+					`\n❌ Failed to ${isUpdate ? "update" : "publish"} serverless function`
+				)
 			);
 		}
 	} catch (error) {
@@ -425,6 +464,26 @@ async function handleTest(args = []) {
 				)
 			);
 			return;
+		}
+
+		// Step 4.1: Detect actual handler function name from code
+		// This handles cases where user might have renamed the function (e.g., handler -> handler1)
+		const handlerCode = fs.readFileSync(handlerPath, "utf8");
+		const detectedFunction = detectHandlerFunctionFromCode(
+			handlerCode,
+			language
+		);
+
+		if (detectedFunction && detectedFunction !== handlerFunction) {
+			console.log(
+				chalk.yellow(`⚠️  Detected handler function: `) +
+					chalk.bold.white(detectedFunction) +
+					chalk.yellow(` (config says: ${handlerFunction})`)
+			);
+			console.log(
+				chalk.cyan("   Using detected function name from code...")
+			);
+			handlerFunction = detectedFunction;
 		}
 
 		console.log(
@@ -704,6 +763,50 @@ async function handlePull(args) {
 					"\n❌ Failed to fetch serverless details. Please try again later."
 				)
 			);
+			return;
+		}
+		// console.log("selectes serverless : ",pulledServerless)
+
+		// Get the app name and language for the folder name
+		const appName =
+			pulledServerless?.Config?.Name || selectedServerless.Config?.Name;
+		const language =
+			pulledServerless?.Config?.CodeOpts?.Language?.split("/")[0] ||
+			"nodejs";
+
+		// Create folder name similar to create command
+		const folderName = `${appName}-${language}`;
+		const targetDir = path.join(currentDir, folderName);
+
+		// Check if folder already exists
+		if (fs.existsSync(targetDir)) {
+			console.error(
+				chalk.red(
+					`\n❌ Folder "${folderName}" already exists in ${currentDir}. Please remove it or use a different location.`
+				)
+			);
+			return;
+		}
+
+		// Create the folder
+		fs.mkdirSync(targetDir, { recursive: true });
+		console.log(chalk.cyan(`\n📁 Creating folder: ${folderName}`));
+
+		// Create the files (boltic.yaml with serverlessId and serverlessConfig, handler file with code)
+		try {
+			createPulledServerlessFiles(targetDir, pulledServerless);
+			displayPullSuccessMessage(appName, targetDir);
+		} catch (fileError) {
+			console.error(
+				chalk.red("\n❌ Failed to create files:"),
+				fileError.message
+			);
+			// Clean up the created folder on error
+			try {
+				fs.rmSync(targetDir, { recursive: true, force: true });
+			} catch (cleanupError) {
+				// Ignore cleanup errors
+			}
 			return;
 		}
 	} catch (error) {
