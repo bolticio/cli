@@ -1,4 +1,4 @@
-import { search } from "@inquirer/prompts";
+import { search, input } from "@inquirer/prompts";
 import chalk from "chalk";
 import fs from "fs";
 import path from "path";
@@ -14,9 +14,7 @@ import {
 	parseCreateArgs,
 	parseTestArgs,
 	parsePublishArgs,
-	generateRandomName,
 	createServerlessFiles,
-	displayCreateSuccessMessages,
 	loadBolticConfig,
 	parseLanguageFromConfig,
 	parseHandlerConfig,
@@ -28,7 +26,6 @@ import {
 	cleanupGeneratedFiles,
 	displayTestStartupMessage,
 	readHandlerFile,
-	buildPublishPayload,
 	buildUpdatePayload,
 	displayPublishSuccessMessage,
 	createPulledServerlessFiles,
@@ -48,10 +45,6 @@ const commands = {
 		description: "Create a new serverless function",
 		action: handleCreate,
 	},
-	// edit: {
-	// 	description: "Edit an existing serverless",
-	// 	action: handleEdit,
-	// },
 	publish: {
 		description: "Publish a serverless",
 		action: handlePublish,
@@ -70,6 +63,13 @@ const commands = {
 	},
 };
 
+// Serverless type choices for dropdown
+const SERVERLESS_TYPE_CHOICES = [
+	{ name: "📝 Code    - Write code directly", value: "code" },
+	{ name: "📦 Git     - Deploy from Git repository", value: "git" },
+	{ name: "🐳 Container - Deploy Docker container", value: "container" },
+];
+
 /**
  * Handle the create serverless command
  */
@@ -83,16 +83,15 @@ async function handleCreate(args = []) {
 
 		// Step 1: Parse CLI arguments
 		const parsedArgs = parseCreateArgs(args);
-		let { name, language, directory } = parsedArgs;
+		let { name, language, directory, type } = parsedArgs;
 
-		// Step 2: Language Selection
-		if (!language) {
-			// Show interactive dropdown for language selection
-			language = await search({
-				message: "Select Language:",
+		// Step 2: Serverless Type Selection
+		if (!type) {
+			type = await search({
+				message: "Select Serverless Type:",
 				source: async (term) => {
-					if (!term) return LANGUAGE_CHOICES;
-					return LANGUAGE_CHOICES.filter(
+					if (!term) return SERVERLESS_TYPE_CHOICES;
+					return SERVERLESS_TYPE_CHOICES.filter(
 						(choice) =>
 							choice.name
 								.toLowerCase()
@@ -103,43 +102,68 @@ async function handleCreate(args = []) {
 					);
 				},
 			});
-		} else {
-			// Validate the provided language
-			if (!SUPPORTED_LANGUAGES.includes(language)) {
-				console.error(
-					chalk.red(`\n❌ Unsupported language: ${language}`)
-				);
-				console.log(
-					chalk.yellow(
-						`Supported languages: ${SUPPORTED_LANGUAGES.join(", ")}`
-					)
-				);
-				return;
-			}
 		}
 
-		// Step 3: Get latest language version
-		const version = LANGUAGE_VERSIONS[language];
+		console.log(chalk.cyan("📦 Selected type: ") + chalk.bold.white(type));
 
-		// Step 4: Name generation
+		// Step 3: Name Input (required - no random generation)
 		if (!name) {
-			name = generateRandomName(language);
-			console.log(
-				chalk.cyan("🎲 Generating a random serverless name: ") +
-					chalk.bold.white(name)
-			);
-		} else {
-			console.log(
-				chalk.cyan("📛 Using provided name: ") + chalk.bold.white(name)
-			);
+			name = await input({
+				message: "Enter serverless function name:",
+				validate: (value) => {
+					if (!value || value.trim() === "") {
+						return "Name is required";
+					}
+					// Validate name format (alphanumeric, hyphens, underscores)
+					if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(value.trim())) {
+						return "Name must start with a letter and contain only letters, numbers, hyphens, and underscores";
+					}
+					return true;
+				},
+			});
+			name = name.trim();
 		}
+		console.log(
+			chalk.cyan("📛 Serverless name: ") + chalk.bold.white(name)
+		);
 
-		// Step 5: Prepare template variables
-		const templateContext = {
-			AppSlug: name,
-			Language: `${language}/${version}`,
-			Region: "asia-south1",
-		};
+		// Step 4: Language Selection (skip for container type)
+		let version = null;
+		if (type !== "container") {
+			if (!language) {
+				language = await search({
+					message: "Select Language:",
+					source: async (term) => {
+						if (!term) return LANGUAGE_CHOICES;
+						return LANGUAGE_CHOICES.filter(
+							(choice) =>
+								choice.name
+									.toLowerCase()
+									.includes(term.toLowerCase()) ||
+								choice.value
+									.toLowerCase()
+									.includes(term.toLowerCase())
+						);
+					},
+				});
+			} else {
+				// Validate the provided language
+				if (!SUPPORTED_LANGUAGES.includes(language)) {
+					console.error(
+						chalk.red(`\n❌ Unsupported language: ${language}`)
+					);
+					console.log(
+						chalk.yellow(
+							`Supported languages: ${SUPPORTED_LANGUAGES.join(", ")}`
+						)
+					);
+					return;
+				}
+			}
+
+			// Step 5: Get latest language version
+			version = LANGUAGE_VERSIONS[language];
+		}
 
 		// Step 6: Determine target directory
 		const targetDir = path.join(directory, name);
@@ -168,29 +192,21 @@ async function handleCreate(args = []) {
 			return;
 		}
 
-		// Step 7 & 8: Create template files
-		console.log(chalk.cyan("\n📝 Creating serverless function files..."));
-		console.log(chalk.dim(`   Language: ${language}/${version}`));
-		console.log(chalk.dim(`   Region: ${templateContext.Region}`));
-		console.log(chalk.dim(`   Handler: ${HANDLER_MAPPING[language]}`));
-
-		try {
-			createServerlessFiles(targetDir, language, templateContext);
-		} catch (err) {
-			console.error(chalk.red(`\n❌ Failed to create template files`));
-			console.error(chalk.red(`Error: ${err.message}`));
-
-			// Cleanup: remove the created directory
-			try {
-				fs.rmSync(targetDir, { recursive: true, force: true });
-			} catch {
-				// Ignore cleanup errors
-			}
+		// Branch based on type
+		if (type === "git") {
+			// For git type: create empty folder with boltic-properties.yaml only
+			await handleGitTypeCreate(name, language, version, targetDir);
 			return;
 		}
 
-		// Step 9: Display success messages
-		displayCreateSuccessMessages(targetDir);
+		if (type === "container") {
+			// For container type: ask for image and create serverless
+			await handleContainerTypeCreate(name, targetDir);
+			return;
+		}
+
+		// For code type: create full template files and call create API
+		await handleCodeTypeCreate(name, language, version, targetDir);
 	} catch (error) {
 		if (
 			error.message &&
@@ -205,6 +221,526 @@ async function handleCreate(args = []) {
 			error.message || "Unknown error"
 		);
 	}
+}
+
+/**
+ * Handle code type serverless creation - creates folder with template files and calls create API
+ */
+async function handleCodeTypeCreate(name, language, version, targetDir) {
+	const templateContext = {
+		AppSlug: name,
+		Language: `${language}/${version}`,
+		Region: "asia-south1",
+	};
+
+	console.log(chalk.cyan("\n📝 Creating serverless function files..."));
+	console.log(chalk.dim(`   Type: code`));
+	console.log(chalk.dim(`   Language: ${language}/${version}`));
+	console.log(chalk.dim(`   Region: ${templateContext.Region}`));
+	console.log(chalk.dim(`   Handler: ${HANDLER_MAPPING[language]}`));
+
+	// Create template files
+	try {
+		createServerlessFiles(targetDir, language, templateContext);
+	} catch (err) {
+		console.error(chalk.red(`\n❌ Failed to create template files`));
+		console.error(chalk.red(`Error: ${err.message}`));
+		// Cleanup
+		try {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		} catch {
+			// Ignore cleanup errors
+		}
+		return;
+	}
+
+	// Get authentication credentials
+	const env = await getCurrentEnv();
+	if (!env || !env.token || !env.session) {
+		console.error(chalk.red("\n❌ Not authenticated. Please login first."));
+		console.log(chalk.yellow("   Run: boltic login"));
+		return;
+	}
+
+	const { apiUrl, token, session } = env;
+
+	// Read the handler file to get the code
+	const handlerFileName = HANDLER_MAPPING[language].split(".")[0];
+	let handlerFile;
+	if (language === "java") {
+		handlerFile = path.join(
+			targetDir,
+			"src",
+			"main",
+			"java",
+			"com",
+			"boltic",
+			"io",
+			"serverless",
+			"Handler.java"
+		);
+	} else if (language === "golang") {
+		handlerFile = path.join(targetDir, `${handlerFileName}.go`);
+	} else if (language === "python") {
+		handlerFile = path.join(targetDir, `${handlerFileName}.py`);
+	} else {
+		handlerFile = path.join(targetDir, `${handlerFileName}.js`);
+	}
+
+	const code = fs.readFileSync(handlerFile, "utf-8");
+
+	// Build the payload for create API
+	const payload = {
+		Name: name,
+		Runtime: "code",
+		Env: {},
+		PortMap: [],
+		Scaling: {
+			AutoStop: false,
+			Min: 1,
+			Max: 1,
+			MaxIdleTime: 0,
+		},
+		Resources: {
+			CPU: 0.1,
+			MemoryMB: 128,
+			MemoryMaxMB: 128,
+		},
+		CodeOpts: {
+			Language: `${language}/${version}`,
+			Packages: [],
+			Code: code,
+		},
+	};
+
+	// Call create serverless API
+	console.log(chalk.cyan("\n📤 Creating serverless function..."));
+	const response = await publishServerless(apiUrl, token, session, payload);
+
+	if (!response) {
+		console.error(chalk.red("\n❌ Failed to create serverless function"));
+		return;
+	}
+
+	// Update boltic-properties.yaml with serverlessId
+	const serverlessId = response.ID || response.data?.ID || response._id;
+	if (serverlessId) {
+		const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
+		let bolticYamlContent = fs.readFileSync(bolticYamlPath, "utf-8");
+		// Add serverlessId at the top after app line
+		bolticYamlContent = bolticYamlContent.replace(
+			/^(app: .*)$/m,
+			`$1\nserverlessId: "${serverlessId}"`
+		);
+		fs.writeFileSync(bolticYamlPath, bolticYamlContent);
+	}
+
+	// Display success message
+	console.log("\n" + chalk.bgGreen.black(" ✓ CREATED ") + "\n");
+	console.log(
+		chalk.green("📝 Code-based serverless function created successfully!")
+	);
+	console.log();
+	console.log(chalk.cyan("   Name: ") + chalk.white(name));
+	console.log(chalk.cyan("   Type: ") + chalk.white("code"));
+	console.log(
+		chalk.cyan("   Language: ") + chalk.white(`${language}/${version}`)
+	);
+	console.log(chalk.cyan("   Location: ") + chalk.white(targetDir));
+	if (serverlessId) {
+		console.log(
+			chalk.cyan("   Serverless ID: ") + chalk.white(serverlessId)
+		);
+	}
+	console.log();
+	console.log(chalk.yellow("📝 Next steps:"));
+	console.log(chalk.dim("   1. Edit your handler code"));
+	console.log(chalk.dim("   2. Test locally: boltic serverless test"));
+	console.log(chalk.dim("   3. Update: boltic serverless publish"));
+	console.log();
+}
+
+/**
+ * Handle git type serverless creation - creates folder with boltic-properties.yaml and calls create API
+ */
+async function handleGitTypeCreate(name, language, version, targetDir) {
+	console.log(chalk.cyan("\n📁 Creating git-based serverless project..."));
+	console.log(chalk.dim(`   Type: git`));
+	console.log(chalk.dim(`   Language: ${language}/${version}`));
+
+	// Get authentication credentials first
+	const env = await getCurrentEnv();
+	if (!env || !env.token || !env.session) {
+		console.error(chalk.red("\n❌ Not authenticated. Please login first."));
+		console.log(chalk.yellow("   Run: boltic login"));
+		// Cleanup the created directory
+		try {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		} catch {
+			// Ignore cleanup errors
+		}
+		return;
+	}
+
+	const { apiUrl, token, session } = env;
+
+	// Build the payload for git type
+	const payload = {
+		Name: name,
+		Runtime: "git",
+		Env: {},
+		PortMap: [],
+		Scaling: {
+			AutoStop: false,
+			Min: 1,
+			Max: 1,
+			MaxIdleTime: 0,
+		},
+		Resources: {
+			CPU: 0.1,
+			MemoryMB: 128,
+			MemoryMaxMB: 128,
+		},
+		CodeOpts: {
+			Language: `${language}/${version}`,
+		},
+	};
+
+	// Call create serverless API
+	console.log(chalk.cyan("\n📤 Creating git-based serverless function..."));
+	const response = await publishServerless(apiUrl, token, session, payload);
+
+	if (!response) {
+		console.error(chalk.red("\n❌ Failed to create serverless function"));
+		// Cleanup the created directory
+		try {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		} catch {
+			// Ignore cleanup errors
+		}
+		return;
+	}
+
+	// Extract serverless ID and git info from response
+	// Response structure: { ID, Links: { Git: { Repository: { SshURL, HtmlURL, CloneURL, ... } } } }
+	const serverlessId = response.ID || response.data?.ID || response._id;
+	const gitRepo =
+		response.Links?.Git?.Repository ||
+		response.data?.Links?.Git?.Repository;
+	const gitSshUrl = gitRepo?.SshURL || "";
+	const gitHttpUrl = gitRepo?.HtmlURL || "";
+	const gitCloneUrl = gitRepo?.CloneURL || "";
+
+	// Create boltic-properties.yaml with serverlessId
+	const bolticYamlContent = `app: "${name}"
+serverlessId: "${serverlessId}"
+region: "asia-south1"
+handler: "${HANDLER_MAPPING[language]}"
+language: "${language}/${version}"
+
+serverlessConfig:
+  Name: "${name}"
+  Description: ""
+  Runtime: "git"
+  # Environment variables for your serverless function
+  # To add env variables, replace {} with key-value pairs like:
+  # Env:
+  #   API_KEY: "your-api-key"
+  #TO add port map, replace {} with port map like:
+  # PortMap:
+  #   - Name: "port"
+  #     Port: "8080"
+  #     Protocol: "http"/"https"
+  Env: {}
+  PortMap: {}
+  Scaling:
+    AutoStop: false
+    Min: 1
+    Max: 1
+    MaxIdleTime: 300
+  Resources:
+    CPU: 0.1
+    MemoryMB: 128
+    MemoryMaxMB: 128
+  Timeout: 60
+  Validations: null
+
+build:
+  builtin: dockerfile
+  ignorefile: .gitignore
+`;
+
+	try {
+		fs.writeFileSync(
+			path.join(targetDir, "boltic-properties.yaml"),
+			bolticYamlContent
+		);
+	} catch (err) {
+		console.error(
+			chalk.red(`\n❌ Failed to create boltic-properties.yaml`)
+		);
+		console.error(chalk.red(`Error: ${err.message}`));
+		return;
+	}
+
+	// Check if user has git access by trying ls-remote
+	let hasGitAccess = false;
+	if (gitSshUrl) {
+		console.log(chalk.cyan("\n🔍 Checking git repository access..."));
+		try {
+			// Initialize git repo
+			execSync(`git init`, { cwd: targetDir, stdio: "pipe" });
+			execSync(`git remote add origin ${gitSshUrl}`, {
+				cwd: targetDir,
+				stdio: "pipe",
+			});
+			// Try ls-remote to check SSH access
+			execSync(`git ls-remote ${gitSshUrl}`, {
+				cwd: targetDir,
+				stdio: "pipe",
+				timeout: 15000,
+			});
+			hasGitAccess = true;
+		} catch (err) {
+			hasGitAccess = false;
+		}
+	}
+
+	// If user has access, create main branch
+	if (hasGitAccess) {
+		try {
+			console.log(chalk.cyan("🔧 Setting up git branch..."));
+			// Create main branch
+			execSync(`git checkout -b main`, { cwd: targetDir, stdio: "pipe" });
+			console.log(chalk.green("✓ Created main branch"));
+		} catch (err) {
+			// Ignore errors in branch setup, user can do it manually
+			console.log(
+				chalk.yellow(
+					"⚠️  Could not auto-setup git branch. You can set it up manually."
+				)
+			);
+		}
+	}
+
+	// Display success message
+	console.log("\n" + chalk.bgGreen.black(" ✓ CREATED ") + "\n");
+	console.log(
+		chalk.green("📁 Git-based serverless project created successfully!")
+	);
+	console.log();
+	console.log(chalk.cyan("   Name: ") + chalk.white(name));
+	console.log(chalk.cyan("   Type: ") + chalk.white("git"));
+	console.log(
+		chalk.cyan("   Language: ") + chalk.white(`${language}/${version}`)
+	);
+	console.log(chalk.cyan("   Location: ") + chalk.white(targetDir));
+	console.log(chalk.cyan("   Serverless ID: ") + chalk.white(serverlessId));
+
+	if (gitSshUrl || gitHttpUrl) {
+		console.log();
+		console.log(chalk.cyan("   📦 Git Repository:"));
+		if (gitSshUrl) {
+			console.log(chalk.cyan("      SSH URL: ") + chalk.white(gitSshUrl));
+		}
+		if (gitHttpUrl) {
+			console.log(
+				chalk.cyan("      Web URL: ") + chalk.white(gitHttpUrl)
+			);
+		}
+		if (gitCloneUrl) {
+			console.log(
+				chalk.cyan("      Clone URL: ") + chalk.white(gitCloneUrl)
+			);
+		}
+		console.log();
+
+		if (hasGitAccess) {
+			console.log(
+				chalk.green("✅ You have access to the git repository!")
+			);
+			console.log(chalk.green("✅ Main branch created!"));
+			console.log();
+			console.log(
+				chalk.yellow("📝 Next steps - Add your code and push:")
+			);
+			console.log(chalk.dim("   1. Add your server code to this folder"));
+			console.log(chalk.dim("   2. Commit and push:"));
+			console.log(chalk.white(`      git add .`));
+			console.log(chalk.white(`      git commit -m "Initial commit"`));
+			console.log(chalk.white(`      git push -u origin main`));
+		} else {
+			console.log(
+				chalk.red("❌ You don't have access to this git repository.")
+			);
+			console.log(
+				chalk.yellow(
+					"   Please add your SSH key from the Boltic UI to get access."
+				)
+			);
+			console.log();
+			console.log(
+				chalk.yellow("📝 Once you have access, push your code:")
+			);
+			console.log(chalk.dim("   1. Add your code to this folder"));
+			console.log(chalk.dim("   2. Run:"));
+			console.log(chalk.white(`      git checkout -b main`));
+			console.log(chalk.white(`      git add .`));
+			console.log(chalk.white(`      git commit -m "Initial commit"`));
+			console.log(chalk.white(`      git push -u origin main`));
+		}
+	} else {
+		console.log();
+		console.log(chalk.yellow("📝 Next steps:"));
+		console.log(chalk.dim("   1. Add your code to this folder"));
+		console.log(chalk.dim("   2. Configure git remote and push your code"));
+	}
+	console.log();
+}
+
+/**
+ * Handle container type serverless creation - creates empty folder with boltic-properties.yaml
+ */
+async function handleContainerTypeCreate(name, targetDir) {
+	console.log(
+		chalk.cyan("\n🐳 Creating container-based serverless project...")
+	);
+	console.log(chalk.dim(`   Type: container`));
+
+	// Ask for container image URI
+	const containerImage = await input({
+		message: "Enter container image URI (e.g., docker.io/user/image:tag):",
+		validate: (value) => {
+			if (!value || value.trim() === "") {
+				return "Container image URI is required";
+			}
+			return true;
+		},
+	});
+
+	console.log(chalk.cyan("\n📤 Creating serverless function..."));
+
+	// Get auth credentials
+	const { apiUrl, token, session } = await getCurrentEnv();
+
+	// Build create payload for container type
+	const createPayload = {
+		Name: name,
+		Description: "",
+		Runtime: "container",
+		PortMap: [],
+		Scaling: {
+			AutoStop: false,
+			Min: 1,
+			Max: 1,
+			MaxIdleTime: 300,
+		},
+		Resources: {
+			CPU: 0.1,
+			MemoryMB: 128,
+			MemoryMaxMB: 128,
+		},
+		Timeout: 60,
+		Validations: null,
+		ContainerOpts: {
+			Image: containerImage.trim(),
+			Args: [],
+			Command: "",
+		},
+	};
+
+	// Call create serverless API
+	const response = await publishServerless(
+		apiUrl,
+		token,
+		session,
+		createPayload
+	);
+
+	if (!response || !response.ID) {
+		console.error(chalk.red("\n❌ Failed to create serverless function"));
+		// Cleanup directory
+		try {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		} catch {
+			// Ignore cleanup errors
+		}
+		return;
+	}
+
+	const serverlessId = response.ID;
+
+	// Create boltic-properties.yaml for container type
+	const bolticYamlContent = `app: "${name}"
+region: "asia-south1"
+serverlessId: "${serverlessId}"
+
+serverlessConfig:
+  Name: "${name}"
+  Description: ""
+  Runtime: "container"
+  # Environment variables for your serverless function
+  # To add env variables, replace {} with key-value pairs like:
+  # Env:
+  #   API_KEY: "your-api-key"
+  Env: {}
+  PortMap: []
+  Scaling:
+    AutoStop: false
+    Min: 1
+    Max: 1
+    MaxIdleTime: 300
+  Resources:
+    CPU: 0.1
+    MemoryMB: 128
+    MemoryMaxMB: 128
+  Timeout: 60
+  Validations: null
+  ContainerOpts:
+    Image: "${containerImage.trim()}"
+    Args: []
+    Command: ""
+
+build:
+  builtin: dockerfile
+  ignorefile: .gitignore
+`;
+
+	try {
+		fs.writeFileSync(
+			path.join(targetDir, "boltic-properties.yaml"),
+			bolticYamlContent
+		);
+	} catch (err) {
+		console.error(
+			chalk.red(`\n❌ Failed to create boltic-properties.yaml`)
+		);
+		console.error(chalk.red(`Error: ${err.message}`));
+		return;
+	}
+
+	// Display success message for container type
+	console.log("\n" + chalk.bgGreen.black(" ✓ CREATED ") + "\n");
+	console.log(
+		chalk.green(
+			"🐳 Container-based serverless project created successfully!"
+		)
+	);
+	console.log();
+	console.log(chalk.cyan("   Name: ") + chalk.white(name));
+	console.log(chalk.cyan("   Type: ") + chalk.white("container"));
+	console.log(chalk.cyan("   Image: ") + chalk.white(containerImage.trim()));
+	console.log(chalk.cyan("   Location: ") + chalk.white(targetDir));
+	console.log(chalk.cyan("   Serverless ID: ") + chalk.white(serverlessId));
+	console.log();
+	console.log(chalk.yellow("📝 Next steps:"));
+	console.log(
+		chalk.dim("   1. To update configuration, edit boltic-properties.yaml")
+	);
+	console.log(
+		chalk.dim("   2. To publish changes: boltic serverless publish")
+	);
+	console.log();
 }
 
 /**
@@ -230,11 +766,13 @@ async function handlePublish(args = []) {
 			return;
 		}
 
-		// Step 2: Load boltic.yaml config
+		// Step 2: Load boltic-properties.yaml config
 		const config = loadBolticConfig(directory);
 		if (!config) {
 			console.error(
-				chalk.red("\n❌ boltic.yaml not found in the directory")
+				chalk.red(
+					"\n❌ boltic-properties.yaml not found in the directory"
+				)
 			);
 			console.log(
 				chalk.yellow(
@@ -251,90 +789,71 @@ async function handlePublish(args = []) {
 		const serverlessConfig = config.serverlessConfig;
 
 		if (!appName) {
-			console.error(chalk.red("\n❌ App name not found in boltic.yaml"));
+			console.error(
+				chalk.red("\n❌ App name not found in boltic-properties.yaml")
+			);
 			return;
 		}
 
-		if (!language) {
-			console.error(chalk.red("\n❌ Language not found in boltic.yaml"));
+		if (!language && serverlessConfig?.Runtime !== "container") {
+			console.error(
+				chalk.red("\n❌ Language not found in boltic-properties.yaml")
+			);
 			return;
 		}
 
 		console.log(chalk.cyan("📋 App Name: ") + chalk.white(appName));
 		console.log(chalk.cyan("📋 Language: ") + chalk.white(language));
+		console.log(
+			chalk.cyan("📋 Runtime: ") +
+				chalk.white(serverlessConfig?.Runtime || "code")
+		);
 
-		// Check if this is an update (serverlessId exists)
-		const isUpdate = !!serverlessId;
-		if (isUpdate) {
-			console.log(
-				chalk.cyan("📋 Serverless ID: ") + chalk.white(serverlessId)
-			);
-			console.log(
-				chalk.yellow("   (Updating existing serverless function)")
-			);
-		}
-
-		// Step 4: Read handler file
+		// Step 4: Read handler file (only for "code" runtime type)
 		const languageBase = parseLanguageFromConfig(language);
-		const code = readHandlerFile(directory, languageBase, config);
+		const runtime = serverlessConfig?.Runtime || "code";
+		let code = null;
+		console.log("runtime: ", runtime);
+		if (runtime === "code") {
+			code = readHandlerFile(directory, languageBase, config);
 
-		if (!code) {
-			console.error(chalk.red("\n❌ Handler file not found"));
-			const handlerConfig = parseHandlerConfig(
-				config.handler,
-				languageBase
-			);
-			console.log(
-				chalk.yellow(`Expected handler file: ${handlerConfig.file}`)
-			);
-			return;
+			if (!code) {
+				console.error(chalk.red("\n❌ Handler file not found"));
+				const handlerConfig = parseHandlerConfig(
+					config.handler,
+					languageBase
+				);
+				console.log(
+					chalk.yellow(`Expected handler file: ${handlerConfig.file}`)
+				);
+				return;
+			}
+
+			console.log(chalk.cyan("📄 Handler code loaded successfully"));
 		}
-
-		console.log(chalk.cyan("📄 Handler code loaded successfully"));
 
 		// Step 5: Get auth credentials
 		const { apiUrl, token, session } = await getCurrentEnv();
 
 		let response;
 
-		if (isUpdate) {
-			// Update existing serverless function
-			const payload = buildUpdatePayload(
-				serverlessConfig,
-				language,
-				code
-			);
+		// Update existing serverless function
+		const payload = buildUpdatePayload(serverlessConfig, language, code);
 
-			console.log(chalk.cyan("\n📤 Updating serverless function..."));
-
-			response = await updateServerless(
-				apiUrl,
-				token,
-				session,
-				serverlessId,
-				payload
-			);
-		} else {
-			// Create new serverless function
-			const payload = buildPublishPayload(
-				appName,
-				language,
-				code,
-				serverlessConfig
-			);
-
-			console.log(chalk.cyan("\n📤 Publishing serverless function..."));
-
-			response = await publishServerless(apiUrl, token, session, payload);
-		}
+		console.log(chalk.cyan("\n📤 Updating serverless function..."));
+		response = await updateServerless(
+			apiUrl,
+			token,
+			session,
+			serverlessId,
+			payload
+		);
 
 		if (response) {
-			displayPublishSuccessMessage(appName, response, isUpdate);
+			displayPublishSuccessMessage(appName, response);
 		} else {
 			console.error(
-				chalk.red(
-					`\n❌ Failed to ${isUpdate ? "update" : "publish"} serverless function`
-				)
+				chalk.red(`\n❌ Failed to publish serverless function`)
 			);
 		}
 	} catch (error) {
@@ -401,14 +920,52 @@ async function handleTest(args = []) {
 			return;
 		}
 
-		// Step 2: Load boltic.yaml config
+		// Step 2: Load boltic-properties.yaml config
 		const config = loadBolticConfig(directory);
+		if (!config) {
+			console.error(
+				chalk.red(
+					"\n❌ boltic-properties.yaml not found in the directory"
+				)
+			);
+			console.log(
+				chalk.yellow(
+					"You can only test code or container type serverless with boltic-properties.yaml"
+				)
+			);
+			return;
+		}
 
-		// Step 3: Determine language
+		// Check if it's a container type serverless
+		const runtime = config.serverlessConfig?.Runtime || "code";
+		if (runtime === "container") {
+			await handleContainerTest(config, directory, port);
+			return;
+		}
+
+		// For git type, show message that test is not supported
+		if (runtime === "git") {
+			console.log(
+				chalk.yellow(
+					"\n⚠️  Git type serverless test is not supported via CLI."
+				)
+			);
+			console.log(
+				chalk.dim(
+					"For git type, run your server directly using your project's start command."
+				)
+			);
+			console.log(
+				chalk.dim("Example: npm start, python app.py, go run ., etc.")
+			);
+			return;
+		}
+
+		// Step 3: Determine language (for code type)
 		if (!language && config?.language) {
 			language = parseLanguageFromConfig(config.language);
 			console.log(
-				chalk.cyan("📋 Using language from boltic.yaml: ") +
+				chalk.cyan("📋 Using language from boltic-properties.yaml: ") +
 					chalk.bold.white(language)
 			);
 		}
@@ -685,6 +1242,117 @@ async function handleTest(args = []) {
 	}
 }
 
+/**
+ * Handle container type serverless test - runs docker container locally
+ */
+async function handleContainerTest(config, directory, port) {
+	const containerOpts = config.serverlessConfig?.ContainerOpts;
+	const image = containerOpts?.Image;
+
+	if (!image) {
+		console.error(
+			chalk.red(
+				"\n❌ Container image not found in boltic-properties.yaml"
+			)
+		);
+		console.log(
+			chalk.yellow(
+				"Please ensure ContainerOpts.Image is set in serverlessConfig."
+			)
+		);
+		return;
+	}
+
+	console.log(chalk.cyan("\n🐳 Container serverless detected"));
+	console.log(chalk.dim(`   Image: ${image}`));
+	console.log(chalk.dim(`   Port: ${port}`));
+
+	// Check if Docker is available
+	try {
+		execSync("docker --version", { stdio: "pipe" });
+	} catch (err) {
+		console.error(
+			chalk.red("\n❌ Docker is not installed or not available in PATH.")
+		);
+		console.log(
+			chalk.yellow(
+				"Please install Docker to test container type serverless."
+			)
+		);
+		return;
+	}
+
+	// Build environment variables from config
+	const envVars = config.serverlessConfig?.Env || {};
+	const envArgs = Object.entries(envVars).flatMap(([key, value]) => [
+		"-e",
+		`${key}=${value}`,
+	]);
+
+	// Build docker run command
+	const dockerArgs = ["run", "--rm", "-p", `${port}:8080`, ...envArgs, image];
+
+	console.log("\n" + chalk.bgCyan.black(" 🧪 LOCAL CONTAINER TEST ") + "\n");
+	console.log(
+		chalk.green(`🚀 Starting container on http://localhost:${port}`)
+	);
+	console.log();
+	console.log(chalk.dim("━".repeat(60)));
+	console.log(chalk.dim("  Press Ctrl+C to stop the container"));
+	console.log(chalk.dim("━".repeat(60)));
+	console.log();
+
+	// Start the container
+	const dockerProcess = spawn("docker", dockerArgs, {
+		cwd: directory,
+		stdio: ["inherit", "pipe", "pipe"],
+	});
+
+	// Stream stdout
+	dockerProcess.stdout.on("data", (data) => {
+		process.stdout.write(chalk.white(data.toString()));
+	});
+
+	// Stream stderr
+	dockerProcess.stderr.on("data", (data) => {
+		process.stderr.write(chalk.yellow(data.toString()));
+	});
+
+	// Handle process exit
+	dockerProcess.on("close", (code) => {
+		console.log(
+			chalk.yellow(`\n🛑 Container stopped with exit code: ${code}`)
+		);
+		process.exit(code || 0);
+	});
+
+	// Handle process error
+	dockerProcess.on("error", (error) => {
+		console.error(
+			chalk.red(`\n❌ Failed to start container: ${error.message}`)
+		);
+		if (error.code === "ENOENT") {
+			console.log(
+				chalk.yellow(
+					"\n💡 Hint: Make sure Docker is installed and available in PATH."
+				)
+			);
+		}
+		process.exit(1);
+	});
+
+	// Handle Ctrl+C
+	const cleanup = (signal) => {
+		console.log(
+			chalk.yellow(`\n\n🛑 Received ${signal}, stopping container...`)
+		);
+		dockerProcess.kill("SIGTERM");
+	};
+
+	process.on("SIGINT", () => cleanup("SIGINT"));
+	process.on("SIGTERM", () => cleanup("SIGTERM"));
+}
+
 async function handlePull(args) {
 	console.log(chalk.green("Pulling serverless..."));
 	try {
@@ -731,10 +1399,20 @@ async function handlePull(args) {
 		}
 		// Let user select an integration
 		const choices =
-			allServerless.map((serverless) => ({
-				name: `${serverless.Config.Name}: Status - ${serverless.Status} ${serverless.Config?.CodeOpts?.Language ? `( - language: ${serverless.Config.CodeOpts.Language})` : ""}`,
-				value: serverless,
-			})) || [];
+			allServerless.map((serverless) => {
+				const runtime = serverless.Config?.Runtime || "code";
+				const typeIcon =
+					runtime === "git"
+						? "📦"
+						: runtime === "container"
+							? "🐳"
+							: "📝";
+				const language = serverless.Config?.CodeOpts?.Language;
+				return {
+					name: `${serverless.Config.Name}: ${typeIcon} ${runtime} | Status - ${serverless.Status}${language ? ` | language: ${language}` : ""}`,
+					value: serverless,
+				};
+			}) || [];
 
 		const selectedServerless = await search({
 			message: "Search and select an serverless to edit:",
@@ -767,15 +1445,16 @@ async function handlePull(args) {
 		}
 		// console.log("selectes serverless : ",pulledServerless)
 
-		// Get the app name and language for the folder name
+		// Get the app name, language and type for the folder name
 		const appName =
 			pulledServerless?.Config?.Name || selectedServerless.Config?.Name;
 		const language =
 			pulledServerless?.Config?.CodeOpts?.Language?.split("/")[0] ||
 			"nodejs";
+		const serverlessType = pulledServerless?.Config?.Runtime || "code";
 
 		// Create folder name similar to create command
-		const folderName = `${appName}-${language}`;
+		const folderName = appName;
 		const targetDir = path.join(currentDir, folderName);
 
 		// Check if folder already exists
@@ -792,9 +1471,19 @@ async function handlePull(args) {
 		fs.mkdirSync(targetDir, { recursive: true });
 		console.log(chalk.cyan(`\n📁 Creating folder: ${folderName}`));
 
-		// Create the files (boltic.yaml with serverlessId and serverlessConfig, handler file with code)
+		// Create the files (boltic-properties.yaml with serverlessId and serverlessConfig, handler file with code)
 		try {
-			createPulledServerlessFiles(targetDir, pulledServerless);
+			const result = createPulledServerlessFiles(
+				targetDir,
+				pulledServerless,
+				serverlessType
+			);
+
+			// If there was an error (e.g., no SSH access for git type), don't show success
+			if (result?.error) {
+				return;
+			}
+
 			displayPullSuccessMessage(appName, targetDir);
 		} catch (fileError) {
 			console.error(
@@ -833,14 +1522,19 @@ function showHelp() {
 
 	console.log(chalk.cyan("\nCreate Command Options:\n"));
 	console.log(
+		chalk.bold("  --type, -t") +
+			chalk.dim("           ") +
+			"Serverless type: code, git, or container (prompts if not provided)"
+	);
+	console.log(
 		chalk.bold("  --name, -n") +
 			chalk.dim("           ") +
-			"Name of the serverless function (auto-generated if not provided)"
+			"Name of the serverless function (required, prompts if not provided)"
 	);
 	console.log(
 		chalk.bold("  --language, -l") +
 			chalk.dim("       ") +
-			"Programming language (nodejs, python, golang, java)"
+			"Programming language: nodejs, python, golang, java (prompts if not provided)"
 	);
 	console.log(
 		chalk.bold("  --directory, -d") +
@@ -886,13 +1580,31 @@ function showHelp() {
 	);
 
 	console.log(chalk.cyan("\nCreate Examples:\n"));
-	console.log(chalk.dim("  # Interactive mode (will prompt for language)"));
-	console.log("  boltic serverless create\n");
-	console.log(chalk.dim("  # With language flag"));
-	console.log("  boltic serverless create --language nodejs\n");
-	console.log(chalk.dim("  # With all flags"));
 	console.log(
-		"  boltic serverless create --name my-function --language python --directory ./my-project\n"
+		chalk.dim(
+			"  # Interactive mode (will prompt for type, name, and language)"
+		)
+	);
+	console.log("  boltic serverless create\n");
+	console.log(chalk.dim("  # Create code-based serverless"));
+	console.log(
+		"  boltic serverless create --type code --name my-api --language nodejs\n"
+	);
+	console.log(
+		chalk.dim(
+			"  # Create git-based serverless (add your code, then publish)"
+		)
+	);
+	console.log(
+		"  boltic serverless create --type git --name my-git-func --language python\n"
+	);
+	console.log(chalk.dim("  # Create container-based serverless"));
+	console.log(
+		"  boltic serverless create --type container --name my-container --language golang\n"
+	);
+	console.log(chalk.dim("  # With custom directory"));
+	console.log(
+		"  boltic serverless create --type code --name my-function --language python --directory ./projects\n"
 	);
 
 	console.log(chalk.cyan("\nPublish Command Options:\n"));

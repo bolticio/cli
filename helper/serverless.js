@@ -2,6 +2,7 @@ import chalk from "chalk";
 import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
+import { execSync, spawn } from "child_process";
 import {
 	uniqueNamesGenerator,
 	adjectives,
@@ -41,6 +42,7 @@ export function parseCreateArgs(args) {
 		name: null,
 		language: null,
 		directory: process.cwd(),
+		type: null, // code, git, or container
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -55,6 +57,9 @@ export function parseCreateArgs(args) {
 			i++;
 		} else if ((arg === "--directory" || arg === "-d") && nextArg) {
 			parsed.directory = path.resolve(nextArg);
+			i++;
+		} else if ((arg === "--type" || arg === "-t") && nextArg) {
+			parsed.type = nextArg.toLowerCase();
 			i++;
 		}
 	}
@@ -78,7 +83,7 @@ export function generateRandomName(language) {
 }
 
 /**
- * Get the boltic.yaml template content
+ * Get the boltic-properties.yaml template content
  */
 export function getBolticYamlContent(templateContext, language) {
 	return `app: "${templateContext.AppSlug}"
@@ -250,8 +255,8 @@ export function getHandlerFilePath(language) {
  * Create the serverless function files
  */
 export function createServerlessFiles(targetDir, language, templateContext) {
-	// Create boltic.yaml
-	const bolticYamlPath = path.join(targetDir, "boltic.yaml");
+	// Create boltic-properties.yaml
+	const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
 	const bolticYamlContent = getBolticYamlContent(templateContext, language);
 	fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
 
@@ -395,10 +400,10 @@ export function parseTestArgs(args) {
 }
 
 /**
- * Load and parse boltic.yaml configuration
+ * Load and parse boltic-properties.yaml configuration
  */
 export function loadBolticConfig(directory) {
-	const configPath = path.join(directory, "boltic.yaml");
+	const configPath = path.join(directory, "boltic-properties.yaml");
 
 	if (!fs.existsSync(configPath)) {
 		return null;
@@ -411,7 +416,7 @@ export function loadBolticConfig(directory) {
 	} catch (error) {
 		console.log(
 			chalk.yellow(
-				`⚠️  Warning: Could not parse boltic.yaml: ${error.message}`
+				`⚠️  Warning: Could not parse boltic-properties.yaml: ${error.message}`
 			)
 		);
 		return null;
@@ -419,7 +424,7 @@ export function loadBolticConfig(directory) {
 }
 
 /**
- * Parse language from boltic.yaml language field (e.g., "nodejs/20" -> "nodejs")
+ * Parse language from boltic-properties.yaml language field (e.g., "nodejs/20" -> "nodejs")
  */
 export function parseLanguageFromConfig(languageField) {
 	if (!languageField) return null;
@@ -899,12 +904,13 @@ export function getStartCommand(language, directory, customCommand) {
 		},
 		java: {
 			// Check if it's Maven or Gradle
+			// Use 'clean' to force fresh compilation (avoid stale class files)
 			command: fs.existsSync(path.join(directory, "pom.xml"))
 				? "mvn"
 				: "gradle",
 			args: fs.existsSync(path.join(directory, "pom.xml"))
-				? ["spring-boot:run", "-f", "pom.xml"]
-				: ["bootRun", "-b", "build.gradle"],
+				? ["clean", "spring-boot:run", "-f", "pom.xml"]
+				: ["clean", "bootRun", "-b", "build.gradle"],
 		},
 	};
 
@@ -961,6 +967,11 @@ export function getTestEnvironmentVariables(port, language) {
 	// Python-specific: disable output buffering
 	if (language === "python") {
 		env.PYTHONUNBUFFERED = "1";
+	}
+
+	// Java-specific: Spring Boot uses SERVER_PORT
+	if (language === "java") {
+		env.SERVER_PORT = String(port);
 	}
 
 	return env;
@@ -1061,46 +1072,29 @@ export function readHandlerFile(directory, language, config) {
 }
 
 /**
- * Build the serverless publish payload
- */
-export function buildPublishPayload(name, language, code, serverlessConfig) {
-	return {
-		Name: name,
-		Runtime: "code",
-		Env: serverlessConfig?.Env || {},
-		PortMap: null,
-		Scaling: serverlessConfig?.Scaling || {
-			AutoStop: false,
-			Min: 1,
-			Max: 1,
-			MaxIdleTime: 300,
-		},
-		Resources: serverlessConfig?.Resources || {
-			CPU: 0.1,
-			MemoryMB: 128,
-			MemoryMaxMB: 128,
-		},
-		Timeout: serverlessConfig?.Timeout || 60,
-		Validations: serverlessConfig?.Validations || null,
-		CodeOpts: {
-			Language: language,
-			Packages: [],
-			Code: code,
-		},
-	};
-}
-
-/**
  * Build payload for updating an existing serverless function
- * Uses serverlessConfig from boltic.yaml and adds CodeOpts
+ * Uses serverlessConfig from boltic-properties.yaml
+ * Only includes CodeOpts when runtime is "code"
  */
 export function buildUpdatePayload(serverlessConfig, language, code) {
-	return {
+	const runtime = serverlessConfig?.Runtime || "code";
+
+	// Flatten PortMap if it's nested (e.g., [[{...}]] -> [{...}])
+	let portMap = serverlessConfig?.PortMap || [];
+	if (
+		Array.isArray(portMap) &&
+		portMap.length > 0 &&
+		Array.isArray(portMap[0])
+	) {
+		portMap = portMap.flat();
+	}
+
+	const payload = {
 		Name: serverlessConfig?.Name || "",
 		Description: serverlessConfig?.Description || "",
-		Runtime: serverlessConfig?.Runtime || "code",
+		Runtime: runtime,
 		Env: serverlessConfig?.Env || {},
-		PortMap: serverlessConfig?.PortMap || [],
+		PortMap: runtime === "code" ? [] : portMap,
 		Scaling: serverlessConfig?.Scaling || {
 			AutoStop: false,
 			Min: 1,
@@ -1114,26 +1108,45 @@ export function buildUpdatePayload(serverlessConfig, language, code) {
 		},
 		Timeout: serverlessConfig?.Timeout || 60,
 		Validations: serverlessConfig?.Validations || null,
-		CodeOpts: {
+	};
+
+	// For code type: CodeOpts with Language, Packages, and Code
+	if (runtime === "code") {
+		payload.CodeOpts = {
 			Language: language,
 			Packages: [],
 			Code: code,
-		},
-	};
+		};
+	}
+
+	// For git type: CodeOpts with Language and Packages only (no Code)
+	if (runtime === "git") {
+		payload.CodeOpts = {
+			Language: language,
+			Packages: [],
+		};
+	}
+
+	// For container type: ContainerOpts only (no CodeOpts)
+	if (runtime === "container") {
+		payload.ContainerOpts = {
+			Image: serverlessConfig?.ContainerOpts?.Image?.trim() || "",
+			Args: serverlessConfig?.ContainerOpts?.Args || [],
+			Command: serverlessConfig?.ContainerOpts?.Command || "",
+		};
+	}
+
+	return payload;
 }
 
 /**
  * Display publish success message
  */
-export function displayPublishSuccessMessage(name, response, isUpdate = false) {
-	const action = isUpdate ? "UPDATED" : "PUBLISHED";
-	const emoji = isUpdate ? "✏️" : "🚀";
+export function displayPublishSuccessMessage(name, response) {
+	const emoji = "🚀";
 
-	console.log("\n" + chalk.bgGreen.black(` ✓ ${action} `) + "\n");
 	console.log(
-		chalk.green(
-			`${emoji} Serverless function ${action.toLowerCase()} successfully!`
-		)
+		chalk.green(`${emoji} Serverless function PUBLISHED successfully!`)
 	);
 	console.log();
 	console.log(chalk.cyan("   Name: ") + chalk.white(name));
@@ -1152,26 +1165,35 @@ export function displayPublishSuccessMessage(name, response, isUpdate = false) {
 	console.log();
 }
 
-// ============================================================================
 // PULL COMMAND HELPERS
-// ============================================================================
 
 /**
- * Get boltic.yaml content for pulled serverless (includes serverlessId and serverlessConfig)
+ * Get boltic-properties.yaml content for pulled serverless (includes serverlessId and serverlessConfig)
  */
 export function getPulledBolticYamlContent(serverlessData) {
 	const config = serverlessData.Config;
+	const runtime = config.Runtime || "code";
 	const language = config.CodeOpts?.Language || "nodejs/20";
 	const handler =
 		HANDLER_MAPPING[language.split("/")[0]] || "handler.handler";
+
+	// Flatten PortMap if nested
+	let portMap = config.PortMap || [];
+	if (
+		Array.isArray(portMap) &&
+		portMap.length > 0 &&
+		Array.isArray(portMap[0])
+	) {
+		portMap = portMap.flat();
+	}
 
 	// Build serverlessConfig object
 	const serverlessConfig = {
 		Name: config.Name || "",
 		Description: config.Description || "",
-		Runtime: config.Runtime || "code",
+		Runtime: runtime,
 		Env: config.Env || {},
-		PortMap: config.PortMap || [],
+		PortMap: portMap,
 		Scaling: config.Scaling || {
 			AutoStop: false,
 			Min: 1,
@@ -1195,18 +1217,47 @@ export function getPulledBolticYamlContent(serverlessData) {
 					.join("\n")
 			: null;
 
-	return `app: "${config.Name}"
+	// Format PortMap as YAML
+	const portMapYaml =
+		serverlessConfig.PortMap.length > 0
+			? serverlessConfig.PortMap.map(
+					(port) =>
+						`    - Name: "${port.Name || "port"}"\n      Port: "${port.Port || "8080"}"\n      Protocol: "${port.Protocol || "http"}"`
+				).join("\n")
+			: null;
+
+	// Check if ContainerOpts exists and has Image
+	const containerOpts = config.ContainerOpts;
+	const hasContainerOpts = containerOpts && containerOpts.Image;
+
+	// Format ContainerOpts as YAML if exists
+	const containerOptsYaml = hasContainerOpts
+		? `  ContainerOpts:
+    Image: "${containerOpts.Image || ""}"
+    Args: ${JSON.stringify(containerOpts.Args || [])}
+    Command: "${containerOpts.Command || ""}"`
+		: "";
+
+	// For container type, don't include handler and language
+	const headerSection =
+		runtime === "container"
+			? `app: "${config.Name}"
+region: "${serverlessData.RegionID || "asia-south1"}"
+serverlessId: "${serverlessData.ID}"`
+			: `app: "${config.Name}"
 region: "${serverlessData.RegionID || "asia-south1"}"
 handler: "${handler}"
 language: "${language}"
-serverlessId: "${serverlessData.ID}"
+serverlessId: "${serverlessData.ID}"`;
+
+	return `${headerSection}
 
 serverlessConfig:
   Name: "${serverlessConfig.Name}"
   Description: "${serverlessConfig.Description}"
   Runtime: "${serverlessConfig.Runtime}"
   Env: ${envYaml ? `\n${envYaml}` : "{}"}
-  PortMap: ${JSON.stringify(serverlessConfig.PortMap)}
+  PortMap: ${portMapYaml ? `\n${portMapYaml}` : "[]"}
   Scaling:
     AutoStop: ${serverlessConfig.Scaling.AutoStop}
     Min: ${serverlessConfig.Scaling.Min}
@@ -1218,6 +1269,7 @@ serverlessConfig:
     MemoryMaxMB: ${serverlessConfig.Resources.MemoryMaxMB}
   Timeout: ${serverlessConfig.Timeout}
   Validations: ${serverlessConfig.Validations === null ? "null" : JSON.stringify(serverlessConfig.Validations)}
+${containerOptsYaml}
 
 build:
   builtin: dockerfile
@@ -1226,14 +1278,143 @@ build:
 }
 
 /**
+ * Handle git-type serverless pull - clone the repository
+ */
+function handleGitTypePull(targetDir, serverlessData) {
+	const config = serverlessData.Config;
+
+	// Get git repository info from Links
+	const gitRepo = serverlessData.Links?.Git?.Repository;
+	const gitSshUrl = gitRepo?.SshURL;
+	const gitHttpUrl = gitRepo?.CloneURL;
+	const gitWebUrl = gitRepo?.HtmlURL;
+
+	if (!gitSshUrl && !gitHttpUrl) {
+		console.log(
+			chalk.yellow(
+				"\n⚠️  No git repository URL found for this serverless."
+			)
+		);
+		console.log(chalk.dim("Creating boltic-properties.yaml only..."));
+
+		// Create boltic-properties.yaml
+		const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
+		const bolticYamlContent = getPulledBolticYamlContent(serverlessData);
+		fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
+
+		return { bolticYamlPath };
+	}
+
+	// Check SSH access
+	let hasGitAccess = false;
+	console.log(chalk.cyan("\n🔍 Checking git repository access..."));
+
+	try {
+		execSync(`git ls-remote ${gitSshUrl}`, {
+			stdio: "pipe",
+			timeout: 15000,
+		});
+		hasGitAccess = true;
+		console.log(chalk.green("✓ SSH access verified!"));
+	} catch (err) {
+		hasGitAccess = false;
+		console.log(chalk.yellow("⚠️  SSH access not available"));
+	}
+
+	if (hasGitAccess) {
+		// Clone the repository
+		console.log(chalk.cyan("\n📥 Cloning repository..."));
+		try {
+			// Remove the target directory first (it was created empty)
+			fs.rmSync(targetDir, { recursive: true, force: true });
+
+			// Clone into the target directory
+			execSync(`git clone ${gitSshUrl} "${targetDir}"`, {
+				stdio: "inherit",
+			});
+
+			// Create/update boltic-properties.yaml with serverlessId
+			const bolticYamlPath = path.join(
+				targetDir,
+				"boltic-properties.yaml"
+			);
+			const bolticYamlContent =
+				getPulledBolticYamlContent(serverlessData);
+			fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
+
+			console.log(chalk.green("\n✓ Repository cloned successfully!"));
+
+			return { bolticYamlPath, cloned: true };
+		} catch (cloneErr) {
+			console.error(
+				chalk.red("\n❌ Failed to clone repository:"),
+				cloneErr.message
+			);
+
+			// Recreate the directory and add boltic-properties.yaml
+			fs.mkdirSync(targetDir, { recursive: true });
+			const bolticYamlPath = path.join(
+				targetDir,
+				"boltic-properties.yaml"
+			);
+			const bolticYamlContent =
+				getPulledBolticYamlContent(serverlessData);
+			fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
+
+			return { bolticYamlPath, cloned: false };
+		}
+	} else {
+		// No SSH access - show error and instructions
+		console.log(
+			chalk.red("\n❌ Cannot clone repository - SSH key not configured.")
+		);
+		console.log();
+		console.log(
+			chalk.yellow(
+				"🔑 Please add your SSH key from Boltic Console → Settings → SSH Keys"
+			)
+		);
+		console.log(chalk.yellow("   Then try pulling again."));
+
+		// Clean up the empty directory
+		try {
+			fs.rmSync(targetDir, { recursive: true, force: true });
+		} catch (err) {
+			// Ignore cleanup errors
+		}
+
+		return { error: true };
+	}
+}
+
+/**
  * Create folder structure for pulled serverless
  */
-export function createPulledServerlessFiles(targetDir, serverlessData) {
+export function createPulledServerlessFiles(
+	targetDir,
+	serverlessData,
+	serverlessType = "code"
+) {
 	const config = serverlessData.Config;
 	const language = config.CodeOpts?.Language?.split("/")[0] || "nodejs";
 
-	// Create boltic.yaml
-	const bolticYamlPath = path.join(targetDir, "boltic.yaml");
+	// Handle git-type serverless
+	if (serverlessType === "git") {
+		return handleGitTypePull(targetDir, serverlessData);
+	}
+
+	// Handle container-type serverless - only create boltic-properties.yaml
+	if (serverlessType === "container") {
+		const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
+		const bolticYamlContent = getPulledBolticYamlContent(serverlessData);
+		fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
+
+		console.log(chalk.green("✓ Created boltic-properties.yaml"));
+		return { bolticYamlPath };
+	}
+
+	// For code-type: Create boltic-properties.yaml and handler file
+	const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
 	const bolticYamlContent = getPulledBolticYamlContent(serverlessData);
 	fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
 
@@ -1284,4 +1465,46 @@ export function displayPullSuccessMessage(name, targetDir) {
 			chalk.cyan("boltic serverless publish")
 	);
 	console.log();
+}
+
+/**
+ * Run a Docker image locally.
+ * @param {string} imageUri - Docker image URI (e.g., nginx:latest)
+ * @param {object} options - Run options
+ * @returns {Promise<void>}
+ */
+export function runDockerImage(imageUri, options = {}) {
+	const {
+		name = "test-container1",
+		ports = [], // e.g. ["3000:3000"]
+		envVars = {}, // { KEY: "value" }
+		volumes = [], // e.g. ["./local:/app"]
+		detach = false, // run in background
+	} = options;
+
+	const args = ["run"];
+
+	if (detach) args.push("-d");
+	if (name) args.push("--name", name);
+
+	ports.forEach((p) => args.push("-p", p));
+	volumes.forEach((v) => args.push("-v", v));
+
+	Object.entries(envVars).forEach(([key, val]) => {
+		args.push("-e", `${key}=${val}`);
+	});
+
+	args.push(imageUri);
+
+	console.log("Running:", ["docker", ...args].join(" "));
+
+	return new Promise((resolve, reject) => {
+		const proc = spawn("docker", args, { stdio: "inherit" });
+
+		proc.on("error", reject);
+		proc.on("exit", (code) => {
+			if (code === 0) resolve();
+			else reject(new Error(`Docker exited with code ${code}`));
+		});
+	});
 }
