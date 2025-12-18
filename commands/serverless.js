@@ -61,6 +61,14 @@ const commands = {
 		description: "Show help for serverless commands",
 		action: showHelp,
 	},
+	list: {
+		description: "List all serverless functions",
+		action: handleList,
+	},
+	status: {
+		description: "Show status of a serverless function",
+		action: handleStatus,
+	},
 };
 
 // Serverless type choices for dropdown
@@ -1549,16 +1557,6 @@ function showHelp() {
 			"Port to run the server on (default: 8080)"
 	);
 	console.log(
-		chalk.bold("  --handler-file, -f") +
-			chalk.dim("   ") +
-			"The handler file to run (e.g., handler.js)"
-	);
-	console.log(
-		chalk.bold("  --handler-function, -u") +
-			chalk.dim(" ") +
-			"Name of the handler function (default: handler)"
-	);
-	console.log(
 		chalk.bold("  --language, -l") +
 			chalk.dim("       ") +
 			"Language (nodejs, python, golang, java) - auto-detected if not specified"
@@ -1568,15 +1566,19 @@ function showHelp() {
 			chalk.dim("      ") +
 			"Base directory of the project (default: current directory)"
 	);
+
+	console.log(chalk.cyan("\nPublish Command Options:\n"));
 	console.log(
-		chalk.bold("  --command") +
-			chalk.dim("            ") +
-			"Custom command to run the server"
+		chalk.bold("  --directory, -d") +
+			chalk.dim("      ") +
+			"Directory of the serverless project (default: current directory)"
 	);
+
+	console.log(chalk.cyan("\nStatus Command Options:\n"));
 	console.log(
-		chalk.bold("  --retain, -r") +
-			chalk.dim("         ") +
-			"Retain auto-generated files after stopping (default: false)"
+		chalk.bold("  --name, -n") +
+			chalk.dim("           ") +
+			"Name of the serverless function (prompts if not provided)"
 	);
 
 	console.log(chalk.cyan("\nCreate Examples:\n"));
@@ -1607,30 +1609,27 @@ function showHelp() {
 		"  boltic serverless create --type code --name my-function --language python --directory ./projects\n"
 	);
 
-	console.log(chalk.cyan("\nPublish Command Options:\n"));
-	console.log(
-		chalk.bold("  --directory, -d") +
-			chalk.dim("      ") +
-			"Directory of the serverless project (default: current directory)"
-	);
-
 	console.log(chalk.cyan("\nTest Examples:\n"));
 	console.log(chalk.dim("  # Basic usage - auto-detect everything"));
 	console.log("  boltic serverless test\n");
 	console.log(chalk.dim("  # Specify port"));
 	console.log("  boltic serverless test --port 3000\n");
-	console.log(chalk.dim("  # Specify language and handler"));
-	console.log(
-		"  boltic serverless test -l nodejs -f handler.js -u handler\n"
-	);
-	console.log(chalk.dim("  # Keep generated files after stopping"));
-	console.log("  boltic serverless test --retain\n");
 
 	console.log(chalk.cyan("\nPublish Examples:\n"));
 	console.log(chalk.dim("  # Publish from current directory"));
 	console.log("  boltic serverless publish\n");
 	console.log(chalk.dim("  # Publish from specific directory"));
 	console.log("  boltic serverless publish -d ./my-function\n");
+
+	console.log(chalk.cyan("\nList Examples:\n"));
+	console.log(chalk.dim("  # List all serverless functions"));
+	console.log("  boltic serverless list\n");
+
+	console.log(chalk.cyan("\nStatus Examples:\n"));
+	console.log(chalk.dim("  # Get status by name"));
+	console.log("  boltic serverless status -n my-function\n");
+	console.log(chalk.dim("  # Interactive mode (will prompt for name)"));
+	console.log("  boltic serverless status\n");
 }
 
 // Execute the serverless command
@@ -1651,6 +1650,277 @@ const execute = async (args) => {
 	const commandObj = commands[subCommand];
 	await commandObj.action(args.slice(1));
 };
+
+async function handleList(args = []) {
+	try {
+		const { apiUrl, token, accountId, session } = await getCurrentEnv();
+
+		console.log(chalk.cyan("\n📋 Fetching serverless functions...\n"));
+
+		const allServerless = await listAllServerless(
+			apiUrl,
+			token,
+			accountId,
+			session
+		);
+
+		if (!allServerless || !Array.isArray(allServerless)) {
+			console.error(
+				chalk.red(
+					"\n❌ Failed to fetch serverless: Invalid response format"
+				)
+			);
+			return;
+		}
+
+		if (allServerless.length === 0) {
+			console.log(chalk.yellow("No serverless functions found."));
+			return;
+		}
+
+		console.log(
+			chalk.green(`Found ${allServerless.length} serverless function(s):`)
+		);
+		console.log(
+			chalk.dim("Use ↑↓ to scroll, type to search, Ctrl+C to exit\n")
+		);
+
+		// Build choices for the list
+		const choices = allServerless.map((serverless) => {
+			const runtime = serverless.Config?.Runtime || "code";
+			const typeIcon =
+				runtime === "git"
+					? "📦"
+					: runtime === "container"
+						? "🐳"
+						: "📝";
+			const language = serverless.Config?.CodeOpts?.Language;
+			const status = serverless.Status;
+
+			return {
+				name: `${serverless.Config.Name}: ${typeIcon} ${runtime} | Status - ${status}${language ? ` | ${language}` : ""} | ID: ${serverless.ID.substring(0, 8)}...`,
+				value: serverless,
+			};
+		});
+
+		// Show interactive scrollable list
+		const selected = await search({
+			message: "Serverless functions (scroll to browse):",
+			source: async (term) => {
+				if (!term) return choices;
+				return choices.filter((choice) =>
+					choice.name.toLowerCase().includes(term.toLowerCase())
+				);
+			},
+		});
+
+		// Show details of selected serverless
+		if (selected) {
+			const runtime = selected.Config?.Runtime || "code";
+			const typeIcon =
+				runtime === "git"
+					? "📦"
+					: runtime === "container"
+						? "🐳"
+						: "📝";
+
+			console.log("\n" + chalk.cyan("━".repeat(60)));
+			console.log(chalk.bold("\n📌 Selected Serverless Details:\n"));
+			console.log(
+				chalk.cyan("   Name: ") + chalk.white(selected.Config.Name)
+			);
+			console.log(chalk.cyan("   ID: ") + chalk.white(selected.ID));
+			console.log(
+				chalk.cyan("   Type: ") + chalk.white(`${typeIcon} ${runtime}`)
+			);
+			console.log(
+				chalk.cyan("   Status: ") + chalk.white(selected.Status)
+			);
+			if (selected.Config?.CodeOpts?.Language) {
+				console.log(
+					chalk.cyan("   Language: ") +
+						chalk.white(selected.Config.CodeOpts.Language)
+				);
+			}
+			if (selected.Config?.ContainerOpts?.Image) {
+				console.log(
+					chalk.cyan("   Image: ") +
+						chalk.white(selected.Config.ContainerOpts.Image)
+				);
+			}
+			console.log(chalk.cyan("━".repeat(60)));
+			console.log(
+				chalk.dim(
+					"\nUse 'boltic serverless pull' to pull this serverless locally."
+				)
+			);
+		}
+	} catch (error) {
+		if (
+			error.message &&
+			error.message.includes("User force closed the prompt")
+		) {
+			console.log(chalk.yellow("\n⚠️ List closed"));
+			return;
+		}
+		console.error(
+			chalk.red("\n❌ An error occurred:"),
+			error.message || "Unknown error"
+		);
+	}
+}
+
+/**
+ * Handle the status command - show status of a serverless function
+ */
+async function handleStatus(args = []) {
+	try {
+		// Parse name from args
+		let name = null;
+		const nameIndex = args.indexOf("--name");
+		const shortNameIndex = args.indexOf("-n");
+
+		if (nameIndex !== -1 && args[nameIndex + 1]) {
+			name = args[nameIndex + 1];
+		} else if (shortNameIndex !== -1 && args[shortNameIndex + 1]) {
+			name = args[shortNameIndex + 1];
+		}
+
+		// If name not provided, prompt for it
+		if (!name) {
+			name = await input({
+				message: "Enter serverless name:",
+				validate: (value) => {
+					if (!value || value.trim() === "") {
+						return "Serverless name is required";
+					}
+					return true;
+				},
+			});
+		}
+
+		const { apiUrl, token, accountId, session } = await getCurrentEnv();
+
+		console.log(chalk.cyan(`\n🔍 Fetching status for "${name}"...\n`));
+
+		// Get serverless by name using query parameter
+		const result = await listAllServerless(
+			apiUrl,
+			token,
+			accountId,
+			session,
+			name // Pass name as query parameter
+		);
+
+		if (!result || !Array.isArray(result)) {
+			console.error(
+				chalk.red(
+					"\n❌ Failed to fetch serverless: Invalid response format"
+				)
+			);
+			return;
+		}
+
+		// Get first element (name is unique)
+		const serverless = result[0];
+
+		if (!serverless) {
+			console.error(chalk.red(`\n❌ Serverless "${name}" not found.`));
+			console.log(
+				chalk.yellow(
+					"\nUse 'boltic serverless list' to see all serverless functions."
+				)
+			);
+			return;
+		}
+
+		// Display status
+		const runtime = serverless.Config?.Runtime || "code";
+		const typeIcon =
+			runtime === "git" ? "📦" : runtime === "container" ? "🐳" : "📝";
+		const status = serverless.Status;
+		const statusColor =
+			status === "running"
+				? chalk.green
+				: status === "draft"
+					? chalk.yellow
+					: status === "stopped"
+						? chalk.red
+						: chalk.gray;
+
+		console.log(chalk.cyan("━".repeat(60)));
+		console.log(chalk.bold("\n📊 Serverless Status\n"));
+		console.log(
+			chalk.cyan("   Name: ") + chalk.white(serverless.Config.Name)
+		);
+		console.log(chalk.cyan("   ID: ") + chalk.white(serverless.ID));
+		console.log(
+			chalk.cyan("   Type: ") + chalk.white(`${typeIcon} ${runtime}`)
+		);
+		console.log(chalk.cyan("   Status: ") + statusColor(status));
+
+		if (serverless.Config?.CodeOpts?.Language) {
+			console.log(
+				chalk.cyan("   Language: ") +
+					chalk.white(serverless.Config.CodeOpts.Language)
+			);
+		}
+		if (serverless.Config?.ContainerOpts?.Image) {
+			console.log(
+				chalk.cyan("   Image: ") +
+					chalk.white(serverless.Config.ContainerOpts.Image)
+			);
+		}
+		if (serverless.Config?.Resources) {
+			console.log(
+				chalk.cyan("   Resources: ") +
+					chalk.white(
+						`CPU: ${serverless.Config.Resources.CPU}, Memory: ${serverless.Config.Resources.MemoryMB}MB`
+					)
+			);
+		}
+		if (serverless.Config?.Scaling) {
+			console.log(
+				chalk.cyan("   Scaling: ") +
+					chalk.white(
+						`Min: ${serverless.Config.Scaling.Min}, Max: ${serverless.Config.Scaling.Max}`
+					)
+			);
+		}
+		if (serverless.RegionID) {
+			console.log(
+				chalk.cyan("   Region: ") + chalk.white(serverless.RegionID)
+			);
+		}
+		if (serverless.CreatedAt) {
+			console.log(
+				chalk.cyan("   Created: ") +
+					chalk.white(new Date(serverless.CreatedAt).toLocaleString())
+			);
+		}
+		if (serverless.UpdatedAt) {
+			console.log(
+				chalk.cyan("   Updated: ") +
+					chalk.white(new Date(serverless.UpdatedAt).toLocaleString())
+			);
+		}
+
+		console.log();
+		console.log(chalk.cyan("━".repeat(60)));
+	} catch (error) {
+		if (
+			error.message &&
+			error.message.includes("User force closed the prompt")
+		) {
+			console.log(chalk.yellow("\n⚠️ Operation cancelled by user"));
+			return;
+		}
+		console.error(
+			chalk.red("\n❌ An error occurred:"),
+			error.message || "Unknown error"
+		);
+	}
+}
 
 export default {
 	execute,

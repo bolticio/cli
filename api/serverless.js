@@ -22,7 +22,13 @@ const getHttpsAgentForUrl = (baseUrl) => {
 	return undefined;
 };
 
-const listAllServerless = async (apiUrl, token, accountId, session) => {
+const listAllServerless = async (
+	apiUrl,
+	token,
+	accountId,
+	session,
+	query = null
+) => {
 	if (!token || !session || !accountId) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
@@ -32,15 +38,22 @@ const listAllServerless = async (apiUrl, token, accountId, session) => {
 		process.exit(1); // Exit the CLI with an error code
 	}
 	try {
+		const params = {
+			page: 1,
+			limit: 999,
+			sortBy: "CreatedAt",
+			sortOrder: "desc",
+		};
+
+		// Add query parameter if provided
+		if (query) {
+			params.q = query;
+		}
+
 		const axiosOptions = {
 			method: "get",
 			url: `${apiUrl}/service/panel/serverless/v1.0/apps`,
-			params: {
-				page: 1,
-				limit: 999,
-				sortBy: "CreatedAt",
-				sortOrder: "desc",
-			},
+			params,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
