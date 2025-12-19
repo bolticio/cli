@@ -4,8 +4,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import EnvironmentCommands from "./commands/env.js";
 import IntegrationCommands from "./commands/integration.js";
-import McpCommands from "./commands/mcp.js";
 import AuthCommands from "./commands/login.js";
+import McpCommands from "./commands/mcp.js";
 import ServerlessCommands from "./commands/serverless.js";
 
 // Create a CLI module with functional approach
@@ -85,12 +85,6 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 				}
 				showHelp(commands);
 				return;
-			}
-
-			if (!subCommand) {
-				// Show help for the command if no subcommand is provided
-				const commandObj = commands[command];
-				await commandObj.action(args.slice(3));
 			}
 
 			// Check if user is authenticated for all commands except login, logout, help, and version
