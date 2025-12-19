@@ -1508,3 +1508,168 @@ export function runDockerImage(imageUri, options = {}) {
 		});
 	});
 }
+
+/**
+ * Poll serverless status until it's running or timeout
+ * @param {Function} fetchStatus - Function to fetch serverless status (pullServerless)
+ * @param {string} serverlessId - ID of the serverless to poll
+ * @param {Object} credentials - API credentials { apiUrl, token, accountId, session }
+ * @param {number} maxTime - Maximum polling time in ms (default: 4 minutes)
+ * @param {number} interval - Polling interval in ms (default: 20 seconds)
+ */
+export async function pollServerlessStatus(
+	fetchStatus,
+	serverlessId,
+	credentials,
+	maxTime = 8 * 60 * 1000,
+	interval = 20 * 1000
+) {
+	const { apiUrl, token, accountId, session } = credentials;
+	const startTime = Date.now();
+	const spinnerFrames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
+	let spinnerIndex = 0;
+	let initialBuildId = null;
+	let sawNewBuild = false;
+
+	// Format elapsed time nicely
+	const formatElapsed = (ms) => {
+		const seconds = Math.floor(ms / 1000);
+		if (seconds < 60) return `${seconds}s`;
+		const minutes = Math.floor(seconds / 60);
+		const remainingSecs = seconds % 60;
+		return `${minutes}m ${remainingSecs}s`;
+	};
+
+	// Get status display
+	const getStatusDisplay = (status) => {
+		switch (status) {
+			case "running":
+				return chalk.green("Running");
+			case "building":
+				return chalk.yellow("Building");
+			case "pending":
+				return chalk.yellow("Pending");
+			case "draft":
+				return chalk.blue("Initializing");
+			case "failed":
+			case "error":
+				return chalk.red("Failed");
+			case "success":
+			case "successful":
+				return chalk.green("Success");
+			default:
+				return chalk.gray(status || "Waiting");
+		}
+	};
+
+	console.log();
+	console.log(chalk.cyan("  Deploying serverless function..."));
+	console.log();
+
+	while (Date.now() - startTime < maxTime) {
+		const elapsed = Date.now() - startTime;
+		const spinner = spinnerFrames[spinnerIndex % spinnerFrames.length];
+		spinnerIndex++;
+
+		try {
+			// Fetch serverless status
+			const serverless = await fetchStatus(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				serverlessId
+			);
+
+			const status = serverless?.Status || "pending";
+			const buildStatus =
+				serverless?.LastBuild?.StatusHistory?.slice(-1)[0]?.Status;
+			const currentBuildId = serverless?.LastBuild?.ID;
+
+			// Track if a new build has started (different from initial or is building)
+			if (!initialBuildId) {
+				initialBuildId = currentBuildId;
+			}
+
+			// Detect new build: either build ID changed or we see "building" status
+			if (
+				currentBuildId !== initialBuildId ||
+				buildStatus === "building" ||
+				buildStatus === "created"
+			) {
+				sawNewBuild = true;
+			}
+
+			// Build status line
+			let statusText = getStatusDisplay(status);
+			if (buildStatus && buildStatus !== status) {
+				statusText +=
+					chalk.dim(" • Build: ") + getStatusDisplay(buildStatus);
+			}
+
+			// Update the same line with current status
+			process.stdout.write(
+				`\r\x1b[K  ${chalk.cyan(spinner)} ${statusText} ${chalk.dim(`(${formatElapsed(elapsed)})`)}`
+			);
+
+			// Success condition:
+			// 1. We must have seen a new build start (sawNewBuild = true)
+			// 2. Build is complete (success)
+			// 3. Status is running
+			const isBuildComplete =
+				buildStatus === "success" || buildStatus === "successful";
+			const isRunning = status === "running";
+
+			if (sawNewBuild && isRunning && isBuildComplete) {
+				process.stdout.write("\r\x1b[K"); // Clear spinner line
+				console.log(
+					chalk.green(
+						`  ✓ Deployed successfully in ${formatElapsed(elapsed)}`
+					)
+				);
+				console.log();
+
+				// Print access URL if available
+				const appDomain = serverless?.AppDomain?.[0];
+				if (appDomain) {
+					const url = `https://${appDomain.DomainName}.${appDomain.BaseUrl || "serverless.boltic.app"}`;
+					console.log(chalk.cyan("  🌐 Your serverless is live at:"));
+					console.log(chalk.white.bold(`     ${url}`));
+					console.log();
+				}
+
+				return { success: true, status, serverless };
+			}
+
+			// Check for failed status
+			if (status === "failed" || buildStatus === "failed") {
+				process.stdout.write("\r\x1b[K"); // Clear spinner line
+				console.log(
+					chalk.red(
+						`  ✗ Deployment failed after ${formatElapsed(elapsed)}`
+					)
+				);
+				console.log();
+				return { success: false, status, serverless };
+			}
+		} catch (error) {
+			process.stdout.write(
+				`\r\x1b[K  ${chalk.yellow("!")} ${chalk.dim("Retrying...")} ${chalk.dim(`(${formatElapsed(elapsed)})`)}`
+			);
+		}
+
+		// Wait before next poll
+		await new Promise((r) => setTimeout(r, interval));
+	}
+
+	// Timeout reached - clear the spinner line
+	process.stdout.write("\r\x1b[K");
+	console.log(chalk.yellow(`  ⚠ Timeout after ${formatElapsed(maxTime)}`));
+	console.log(chalk.dim("    Deployment may still be in progress."));
+	console.log(
+		chalk.dim("    Check status: boltic serverless status -n <name>")
+	);
+	console.log();
+
+	return { success: false, status: "timeout" };
+}

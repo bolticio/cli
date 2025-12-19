@@ -31,6 +31,7 @@ import {
 	createPulledServerlessFiles,
 	displayPullSuccessMessage,
 	detectHandlerFunctionFromCode,
+	pollServerlessStatus,
 } from "../helper/serverless.js";
 import {
 	listAllServerless,
@@ -270,7 +271,7 @@ async function handleCodeTypeCreate(name, language, version, targetDir) {
 		return;
 	}
 
-	const { apiUrl, token, session } = env;
+	const { apiUrl, token, accountId, session } = env;
 
 	// Read the handler file to get the code
 	const handlerFileName = HANDLER_MAPPING[language].split(".")[0];
@@ -361,6 +362,17 @@ async function handleCodeTypeCreate(name, language, version, targetDir) {
 		);
 	}
 	console.log();
+
+	// Poll for serverless status until running
+	if (serverlessId) {
+		await pollServerlessStatus(pullServerless, serverlessId, {
+			apiUrl,
+			token,
+			accountId,
+			session,
+		});
+	}
+
 	console.log(chalk.yellow("📝 Next steps:"));
 	console.log(chalk.dim("   1. Edit your handler code"));
 	console.log(chalk.dim("   2. Test locally: boltic serverless test"));
@@ -629,7 +641,7 @@ async function handleContainerTypeCreate(name, targetDir) {
 	console.log(chalk.cyan("\n📤 Creating serverless function..."));
 
 	// Get auth credentials
-	const { apiUrl, token, session } = await getCurrentEnv();
+	const { apiUrl, token, accountId, session } = await getCurrentEnv();
 
 	// Build create payload for container type
 	const createPayload = {
@@ -741,6 +753,15 @@ build:
 	console.log(chalk.cyan("   Location: ") + chalk.white(targetDir));
 	console.log(chalk.cyan("   Serverless ID: ") + chalk.white(serverlessId));
 	console.log();
+
+	// Poll for serverless status until running
+	await pollServerlessStatus(pullServerless, serverlessId, {
+		apiUrl,
+		token,
+		accountId,
+		session,
+	});
+
 	console.log(chalk.yellow("📝 Next steps:"));
 	console.log(
 		chalk.dim("   1. To update configuration, edit boltic-properties.yaml")
@@ -821,7 +842,7 @@ async function handlePublish(args = []) {
 		const languageBase = parseLanguageFromConfig(language);
 		const runtime = serverlessConfig?.Runtime || "code";
 		let code = null;
-		console.log("runtime: ", runtime);
+
 		if (runtime === "code") {
 			code = readHandlerFile(directory, languageBase, config);
 
@@ -841,7 +862,7 @@ async function handlePublish(args = []) {
 		}
 
 		// Step 5: Get auth credentials
-		const { apiUrl, token, session } = await getCurrentEnv();
+		const { apiUrl, token, accountId, session } = await getCurrentEnv();
 
 		let response;
 
@@ -859,6 +880,16 @@ async function handlePublish(args = []) {
 
 		if (response) {
 			displayPublishSuccessMessage(appName, response);
+
+			// Poll for serverless status for code and container types only
+			if (runtime === "code" || runtime === "container") {
+				await pollServerlessStatus(pullServerless, serverlessId, {
+					apiUrl,
+					token,
+					accountId,
+					session,
+				});
+			}
 		} else {
 			console.error(
 				chalk.red(`\n❌ Failed to publish serverless function`)
