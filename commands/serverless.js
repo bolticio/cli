@@ -74,8 +74,8 @@ const commands = {
 
 // Serverless type choices for dropdown
 const SERVERLESS_TYPE_CHOICES = [
-	{ name: "📝 Code    - Write code directly", value: "code" },
-	{ name: "📦 Git     - Deploy from Git repository", value: "git" },
+	{ name: "📦 Git       - Deploy from Git repository", value: "git" },
+	{ name: "📝 Blueprint - Write code directly", value: "code" },
 	{ name: "🐳 Container - Deploy Docker container", value: "container" },
 ];
 
@@ -347,7 +347,7 @@ async function handleCodeTypeCreate(name, language, version, targetDir) {
 	// Display success message
 	console.log("\n" + chalk.bgGreen.black(" ✓ CREATED ") + "\n");
 	console.log(
-		chalk.green("📝 Code-based serverless function created successfully!")
+		chalk.green("📝 Blueprint serverless function created successfully!")
 	);
 	console.log();
 	console.log(chalk.cyan("   Name: ") + chalk.white(name));
@@ -1563,7 +1563,7 @@ function showHelp() {
 	console.log(
 		chalk.bold("  --type, -t") +
 			chalk.dim("           ") +
-			"Serverless type: code, git, or container (prompts if not provided)"
+			"Serverless type: blueprint, git, or container (prompts if not provided)"
 	);
 	console.log(
 		chalk.bold("  --name, -n") +
@@ -1619,9 +1619,9 @@ function showHelp() {
 		)
 	);
 	console.log("  boltic serverless create\n");
-	console.log(chalk.dim("  # Create code-based serverless"));
+	console.log(chalk.dim("  # Create blueprint serverless"));
 	console.log(
-		"  boltic serverless create --type code --name my-api --language nodejs\n"
+		"  boltic serverless create --type blueprint --name my-api --language nodejs\n"
 	);
 	console.log(
 		chalk.dim(
@@ -1637,7 +1637,7 @@ function showHelp() {
 	);
 	console.log(chalk.dim("  # With custom directory"));
 	console.log(
-		"  boltic serverless create --type code --name my-function --language python --directory ./projects\n"
+		"  boltic serverless create --type blueprint --name my-function --language python --directory ./projects\n"
 	);
 
 	console.log(chalk.cyan("\nTest Examples:\n"));

@@ -8,6 +8,7 @@ import {
 	adjectives,
 	animals,
 } from "unique-names-generator";
+import ora from "ora";
 
 // Supported languages and their versions
 export const SUPPORTED_LANGUAGES = ["nodejs", "python", "golang", "java"];
@@ -59,7 +60,12 @@ export function parseCreateArgs(args) {
 			parsed.directory = path.resolve(nextArg);
 			i++;
 		} else if ((arg === "--type" || arg === "-t") && nextArg) {
-			parsed.type = nextArg.toLowerCase();
+			let typeValue = nextArg.toLowerCase();
+			// Map "blueprint" to "code" for UI consistency
+			if (typeValue === "blueprint") {
+				typeValue = "code";
+			}
+			parsed.type = typeValue;
 			i++;
 		}
 	}
@@ -1526,8 +1532,6 @@ export async function pollServerlessStatus(
 ) {
 	const { apiUrl, token, accountId, session } = credentials;
 	const startTime = Date.now();
-	const spinnerFrames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
-	let spinnerIndex = 0;
 	let initialBuildId = null;
 	let sawNewBuild = false;
 
@@ -1540,136 +1544,174 @@ export async function pollServerlessStatus(
 		return `${minutes}m ${remainingSecs}s`;
 	};
 
-	// Get status display
-	const getStatusDisplay = (status) => {
+	// Get status text (without chalk for ora)
+	const getStatusText = (status) => {
 		switch (status) {
 			case "running":
-				return chalk.green("Running");
+				return "Running";
 			case "building":
-				return chalk.yellow("Building");
+				return "Building";
 			case "pending":
-				return chalk.yellow("Pending");
+				return "Pending";
 			case "draft":
-				return chalk.blue("Initializing");
+				return "Initializing";
 			case "failed":
 			case "error":
-				return chalk.red("Failed");
+				return "Failed";
 			case "success":
 			case "successful":
-				return chalk.green("Success");
+				return "Success";
 			default:
-				return chalk.gray(status || "Waiting");
+				return status || "Waiting";
 		}
 	};
 
 	console.log();
 	console.log(chalk.cyan("  Deploying serverless function..."));
-	console.log();
-
-	while (Date.now() - startTime < maxTime) {
-		const elapsed = Date.now() - startTime;
-		const spinner = spinnerFrames[spinnerIndex % spinnerFrames.length];
-		spinnerIndex++;
-
-		try {
-			// Fetch serverless status
-			const serverless = await fetchStatus(
-				apiUrl,
-				token,
-				accountId,
-				session,
-				serverlessId
-			);
-
-			const status = serverless?.Status || "pending";
-			const buildStatus =
-				serverless?.LastBuild?.StatusHistory?.slice(-1)[0]?.Status;
-			const currentBuildId = serverless?.LastBuild?.ID;
-
-			// Track if a new build has started (different from initial or is building)
-			if (!initialBuildId) {
-				initialBuildId = currentBuildId;
-			}
-
-			// Detect new build: either build ID changed or we see "building" status
-			if (
-				currentBuildId !== initialBuildId ||
-				buildStatus === "building" ||
-				buildStatus === "created"
-			) {
-				sawNewBuild = true;
-			}
-
-			// Build status line
-			let statusText = getStatusDisplay(status);
-			if (buildStatus && buildStatus !== status) {
-				statusText +=
-					chalk.dim(" • Build: ") + getStatusDisplay(buildStatus);
-			}
-
-			// Update the same line with current status
-			process.stdout.write(
-				`\r\x1b[K  ${chalk.cyan(spinner)} ${statusText} ${chalk.dim(`(${formatElapsed(elapsed)})`)}`
-			);
-
-			// Success condition:
-			// 1. We must have seen a new build start (sawNewBuild = true)
-			// 2. Build is complete (success)
-			// 3. Status is running
-			const isBuildComplete =
-				buildStatus === "success" || buildStatus === "successful";
-			const isRunning = status === "running";
-
-			if (sawNewBuild && isRunning && isBuildComplete) {
-				process.stdout.write("\r\x1b[K"); // Clear spinner line
-				console.log(
-					chalk.green(
-						`  ✓ Deployed successfully in ${formatElapsed(elapsed)}`
-					)
-				);
-				console.log();
-
-				// Print access URL if available
-				const appDomain = serverless?.AppDomain?.[0];
-				if (appDomain) {
-					const url = `https://${appDomain.DomainName}.${appDomain.BaseUrl || "serverless.boltic.app"}`;
-					console.log(chalk.cyan("  🌐 Your serverless is live at:"));
-					console.log(chalk.white.bold(`     ${url}`));
-					console.log();
-				}
-
-				return { success: true, status, serverless };
-			}
-
-			// Check for failed status
-			if (status === "failed" || buildStatus === "failed") {
-				process.stdout.write("\r\x1b[K"); // Clear spinner line
-				console.log(
-					chalk.red(
-						`  ✗ Deployment failed after ${formatElapsed(elapsed)}`
-					)
-				);
-				console.log();
-				return { success: false, status, serverless };
-			}
-		} catch (error) {
-			process.stdout.write(
-				`\r\x1b[K  ${chalk.yellow("!")} ${chalk.dim("Retrying...")} ${chalk.dim(`(${formatElapsed(elapsed)})`)}`
-			);
-		}
-
-		// Wait before next poll
-		await new Promise((r) => setTimeout(r, interval));
-	}
-
-	// Timeout reached - clear the spinner line
-	process.stdout.write("\r\x1b[K");
-	console.log(chalk.yellow(`  ⚠ Timeout after ${formatElapsed(maxTime)}`));
-	console.log(chalk.dim("    Deployment may still be in progress."));
 	console.log(
-		chalk.dim("    Check status: boltic serverless status -n <name>")
+		chalk.dim("  Press Ctrl+C to exit. Check status later with: ") +
+			chalk.white("boltic serverless status -n <name>")
 	);
 	console.log();
 
-	return { success: false, status: "timeout" };
+	// Track current status for display
+	let status = "pending";
+	let buildStatus = null;
+	let lastServerless = null;
+
+	// Create ora spinner
+	const spinner = ora({
+		text: `${getStatusText(status)} (0s)`,
+		spinner: "dots",
+		color: "cyan",
+	}).start();
+
+	// Update elapsed time every second
+	const timerInterval = setInterval(() => {
+		const elapsed = Date.now() - startTime;
+		let text = getStatusText(status);
+		if (buildStatus && buildStatus !== status) {
+			text += ` • Build: ${getStatusText(buildStatus)}`;
+		}
+		text += ` (${formatElapsed(elapsed)})`;
+		spinner.text = text;
+	}, 1000);
+
+	// Cleanup function
+	const cleanup = () => {
+		clearInterval(timerInterval);
+	};
+
+	try {
+		while (Date.now() - startTime < maxTime) {
+			try {
+				// Fetch serverless status
+				const serverless = await fetchStatus(
+					apiUrl,
+					token,
+					accountId,
+					session,
+					serverlessId
+				);
+
+				lastServerless = serverless;
+				status = serverless?.Status || "pending";
+				buildStatus =
+					serverless?.LastBuild?.StatusHistory?.slice(-1)[0]?.Status;
+				const currentBuildId = serverless?.LastBuild?.ID;
+
+				// Track if a new build has started
+				if (!initialBuildId) {
+					initialBuildId = currentBuildId;
+				}
+
+				// Detect new build
+				if (
+					currentBuildId !== initialBuildId ||
+					buildStatus === "building" ||
+					buildStatus === "created"
+				) {
+					sawNewBuild = true;
+				}
+
+				// Update spinner color based on status
+				if (status === "running" || buildStatus === "success") {
+					spinner.color = "green";
+				} else if (status === "failed" || buildStatus === "failed") {
+					spinner.color = "red";
+				} else if (
+					status === "building" ||
+					buildStatus === "building"
+				) {
+					spinner.color = "yellow";
+				}
+
+				// Success condition
+				const isBuildComplete =
+					buildStatus === "success" || buildStatus === "successful";
+				const isRunning = status === "running";
+
+				if (sawNewBuild && isRunning && isBuildComplete) {
+					const elapsed = Date.now() - startTime;
+					cleanup();
+					spinner.succeed(
+						chalk.green(
+							`Deployed successfully in ${formatElapsed(elapsed)}`
+						)
+					);
+					console.log();
+
+					// Print access URL if available
+					const appDomain = serverless?.AppDomain?.[0];
+					if (appDomain) {
+						const url = `https://${appDomain.DomainName}.${appDomain.BaseUrl || "serverless.boltic.app"}`;
+						console.log(
+							chalk.cyan("  🌐 Your serverless is live at:")
+						);
+						console.log(chalk.white.bold(`     ${url}`));
+						console.log();
+					}
+
+					return { success: true, status, serverless };
+				}
+
+				// Check for failed status
+				if (status === "failed" || buildStatus === "failed") {
+					const elapsed = Date.now() - startTime;
+					cleanup();
+					spinner.fail(
+						chalk.red(
+							`Deployment failed after ${formatElapsed(elapsed)}`
+						)
+					);
+					console.log();
+					return { success: false, status, serverless };
+				}
+			} catch (error) {
+				// Error during fetch - will retry on next poll
+			}
+
+			// Wait before next poll
+			await new Promise((r) => setTimeout(r, interval));
+		}
+
+		// Timeout reached
+		cleanup();
+		spinner.warn(chalk.yellow(`Timeout after ${formatElapsed(maxTime)}`));
+		console.log(chalk.dim("  Deployment may still be in progress."));
+		console.log(
+			chalk.dim("  Check status: boltic serverless status -n <name>")
+		);
+		console.log();
+
+		return {
+			success: false,
+			status: "timeout",
+			serverless: lastServerless,
+		};
+	} catch (error) {
+		cleanup();
+		spinner.fail("Polling interrupted");
+		throw error;
+	}
 }
