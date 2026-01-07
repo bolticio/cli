@@ -711,6 +711,8 @@ const date = {
 			views: undefined,
 			timeSteps: { hours: 1, minutes: 5, seconds: 5 },
 			allowDynamic: false,
+			outputFormat: "YYYY-MM-DD",
+			unixUnit: "milliseconds",
 		},
 		validation: {
 			required: false,
