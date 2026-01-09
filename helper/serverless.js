@@ -2,6 +2,7 @@ import chalk from "chalk";
 import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
+import TOML from "@iarna/toml";
 import { execSync, spawn } from "child_process";
 import {
 	uniqueNamesGenerator,
@@ -89,7 +90,7 @@ export function generateRandomName(language) {
 }
 
 /**
- * Get the boltic-properties.yaml template content
+ * Get the boltic.yaml template content
  */
 export function getBolticYamlContent(templateContext, language) {
 	return `app: "${templateContext.AppSlug}"
@@ -261,8 +262,8 @@ export function getHandlerFilePath(language) {
  * Create the serverless function files
  */
 export function createServerlessFiles(targetDir, language, templateContext) {
-	// Create boltic-properties.yaml
-	const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
+	// Create boltic.yaml
+	const bolticYamlPath = path.join(targetDir, "boltic.yaml");
 	const bolticYamlContent = getBolticYamlContent(templateContext, language);
 	fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
 
@@ -406,23 +407,50 @@ export function parseTestArgs(args) {
 }
 
 /**
- * Load and parse boltic-properties.yaml configuration
+ * Detect which config file exists in the directory
+ * Returns: { type: 'yaml' | 'toml' | null, path: string | null }
+ */
+export function detectBolticConfigFile(directory) {
+	const yamlPath = path.join(directory, "boltic.yaml");
+	const tomlPath = path.join(directory, "boltic.toml");
+
+	if (fs.existsSync(yamlPath)) {
+		return { type: "yaml", path: yamlPath };
+	}
+	if (fs.existsSync(tomlPath)) {
+		return { type: "toml", path: tomlPath };
+	}
+	return { type: null, path: null };
+}
+
+/**
+ * Load and parse boltic.yaml or boltic.toml configuration
+ * Supports both YAML and TOML formats
  */
 export function loadBolticConfig(directory) {
-	const configPath = path.join(directory, "boltic-properties.yaml");
+	const { type, path: configPath } = detectBolticConfigFile(directory);
 
-	if (!fs.existsSync(configPath)) {
+	if (!type || !configPath) {
 		return null;
 	}
 
 	try {
 		const configContent = fs.readFileSync(configPath, "utf8");
-		const config = yaml.load(configContent);
-		return config;
+
+		if (type === "yaml") {
+			const config = yaml.load(configContent);
+			return config;
+		} else if (type === "toml") {
+			const config = TOML.parse(configContent);
+			return config;
+		}
+
+		return null;
 	} catch (error) {
+		const fileName = type === "yaml" ? "boltic.yaml" : "boltic.toml";
 		console.log(
 			chalk.yellow(
-				`⚠️  Warning: Could not parse boltic-properties.yaml: ${error.message}`
+				`⚠️  Warning: Could not parse ${fileName}: ${error.message}`
 			)
 		);
 		return null;
@@ -430,7 +458,7 @@ export function loadBolticConfig(directory) {
 }
 
 /**
- * Parse language from boltic-properties.yaml language field (e.g., "nodejs/20" -> "nodejs")
+ * Parse language from boltic.yaml language field (e.g., "nodejs/20" -> "nodejs")
  */
 export function parseLanguageFromConfig(languageField) {
 	if (!languageField) return null;
@@ -1079,7 +1107,7 @@ export function readHandlerFile(directory, language, config) {
 
 /**
  * Build payload for updating an existing serverless function
- * Uses serverlessConfig from boltic-properties.yaml
+ * Uses serverlessConfig from boltic.yaml
  * Only includes CodeOpts when runtime is "code"
  */
 export function buildUpdatePayload(serverlessConfig, language, code) {
@@ -1174,7 +1202,7 @@ export function displayPublishSuccessMessage(name, response) {
 // PULL COMMAND HELPERS
 
 /**
- * Get boltic-properties.yaml content for pulled serverless (includes serverlessId and serverlessConfig)
+ * Get boltic.yaml content for pulled serverless (includes serverlessId and serverlessConfig)
  */
 export function getPulledBolticYamlContent(serverlessData) {
 	const config = serverlessData.Config;
@@ -1248,17 +1276,16 @@ export function getPulledBolticYamlContent(serverlessData) {
 	const headerSection =
 		runtime === "container"
 			? `app: "${config.Name}"
-region: "${serverlessData.RegionID || "asia-south1"}"
-serverlessId: "${serverlessData.ID}"`
+region: "${serverlessData.RegionID || "asia-south1"}"`
 			: `app: "${config.Name}"
 region: "${serverlessData.RegionID || "asia-south1"}"
 handler: "${handler}"
-language: "${language}"
-serverlessId: "${serverlessData.ID}"`;
+language: "${language}"`;
 
 	return `${headerSection}
 
 serverlessConfig:
+  serverlessId: "${serverlessData.ID}"
   Name: "${serverlessConfig.Name}"
   Description: "${serverlessConfig.Description}"
   Runtime: "${serverlessConfig.Runtime}"
@@ -1284,6 +1311,158 @@ build:
 }
 
 /**
+ * Build serverlessConfig object from API response data
+ */
+function buildServerlessConfigFromApi(serverlessData) {
+	const config = serverlessData.Config;
+	const runtime = config.Runtime || "code";
+
+	// Flatten PortMap if nested
+	let portMap = config.PortMap || [];
+	if (
+		Array.isArray(portMap) &&
+		portMap.length > 0 &&
+		Array.isArray(portMap[0])
+	) {
+		portMap = portMap.flat();
+	}
+
+	const serverlessConfig = {
+		serverlessId: serverlessData.ID,
+		Name: config.Name || "",
+		Description: config.Description || "",
+		Runtime: runtime,
+		Env: config.Env || {},
+		PortMap: portMap,
+		Scaling: config.Scaling || {
+			AutoStop: false,
+			Min: 1,
+			Max: 1,
+			MaxIdleTime: 300,
+		},
+		Resources: config.Resources || {
+			CPU: 0.1,
+			MemoryMB: 128,
+			MemoryMaxMB: 128,
+		},
+		Timeout: config.Timeout || 60,
+		Validations: config.Validations || null,
+	};
+
+	// Add ContainerOpts if present (for container type)
+	if (config.ContainerOpts && config.ContainerOpts.Image) {
+		serverlessConfig.ContainerOpts = {
+			Image: config.ContainerOpts.Image || "",
+			Args: config.ContainerOpts.Args || [],
+			Command: config.ContainerOpts.Command || "",
+		};
+	}
+
+	return serverlessConfig;
+}
+
+/**
+ * Update only serverlessConfig in existing boltic.yaml (for git type pull)
+ * Preserves other fields like app, region, handler, language, build, etc.
+ */
+function updateBolticYamlServerlessConfig(bolticYamlPath, serverlessData) {
+	try {
+		// Read existing boltic.yaml
+		const existingContent = fs.readFileSync(bolticYamlPath, "utf8");
+		const existingConfig = yaml.load(existingContent);
+
+		// Build new serverlessConfig from API data
+		const newServerlessConfig =
+			buildServerlessConfigFromApi(serverlessData);
+
+		// Update only serverlessConfig, preserve everything else
+		existingConfig.serverlessConfig = newServerlessConfig;
+
+		// Write back with preserved structure
+		const updatedContent = yaml.dump(existingConfig, {
+			indent: 2,
+			lineWidth: -1,
+			noRefs: true,
+			quotingType: '"',
+			forceQuotes: false,
+		});
+
+		fs.writeFileSync(bolticYamlPath, updatedContent, "utf8");
+
+		console.log(
+			chalk.green("✓ Updated serverlessConfig in existing boltic.yaml")
+		);
+		return true;
+	} catch (err) {
+		console.error(
+			chalk.red("❌ Failed to update boltic.yaml:"),
+			err.message
+		);
+		return false;
+	}
+}
+
+/**
+ * Update only serverlessConfig in existing boltic.toml (for git type pull)
+ * Preserves other fields like app, region, handler, language, build, etc.
+ */
+function updateBolticTomlServerlessConfig(bolticTomlPath, serverlessData) {
+	try {
+		// Read existing boltic.toml
+		const existingContent = fs.readFileSync(bolticTomlPath, "utf8");
+		const existingConfig = TOML.parse(existingContent);
+
+		// Build new serverlessConfig from API data
+		const newServerlessConfig =
+			buildServerlessConfigFromApi(serverlessData);
+
+		// Update only serverlessConfig, preserve everything else
+		existingConfig.serverlessConfig = newServerlessConfig;
+
+		// Write back with preserved structure
+		const updatedContent = TOML.stringify(existingConfig);
+
+		fs.writeFileSync(bolticTomlPath, updatedContent, "utf8");
+
+		console.log(
+			chalk.green("✓ Updated serverlessConfig in existing boltic.toml")
+		);
+		return true;
+	} catch (err) {
+		console.error(
+			chalk.red("❌ Failed to update boltic.toml:"),
+			err.message
+		);
+		return false;
+	}
+}
+
+/**
+ * Update serverlessConfig in existing boltic config file (yaml or toml)
+ * Automatically detects file type and uses appropriate parser
+ */
+function updateBolticConfigServerlessConfig(targetDir, serverlessData) {
+	const yamlPath = path.join(targetDir, "boltic.yaml");
+	const tomlPath = path.join(targetDir, "boltic.toml");
+
+	if (fs.existsSync(yamlPath)) {
+		return {
+			updated: updateBolticYamlServerlessConfig(yamlPath, serverlessData),
+			type: "yaml",
+			path: yamlPath,
+		};
+	} else if (fs.existsSync(tomlPath)) {
+		return {
+			updated: updateBolticTomlServerlessConfig(tomlPath, serverlessData),
+			type: "toml",
+			path: tomlPath,
+		};
+	}
+
+	return { updated: false, type: null, path: null };
+}
+
+/**
  * Handle git-type serverless pull - clone the repository
  */
 function handleGitTypePull(targetDir, serverlessData) {
@@ -1301,14 +1480,14 @@ function handleGitTypePull(targetDir, serverlessData) {
 				"\n⚠️  No git repository URL found for this serverless."
 			)
 		);
-		console.log(chalk.dim("Creating boltic-properties.yaml only..."));
+		console.log(chalk.dim("Creating boltic.yaml only..."));
 
-		// Create boltic-properties.yaml
-		const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
+		// Create boltic.yaml
+		const bolticYamlPath = path.join(targetDir, "boltic.yaml");
 		const bolticYamlContent = getPulledBolticYamlContent(serverlessData);
 		fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
 
-		return { bolticYamlPath };
+		return { bolticConfigPath: bolticYamlPath, configType: "yaml" };
 	}
 
 	// Check SSH access
@@ -1339,35 +1518,71 @@ function handleGitTypePull(targetDir, serverlessData) {
 				stdio: "inherit",
 			});
 
-			// Create/update boltic-properties.yaml with serverlessId
-			const bolticYamlPath = path.join(
-				targetDir,
-				"boltic-properties.yaml"
-			);
-			const bolticYamlContent =
-				getPulledBolticYamlContent(serverlessData);
-			fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
-
 			console.log(chalk.green("\n✓ Repository cloned successfully!"));
 
-			return { bolticYamlPath, cloned: true };
+			// Check if boltic.yaml or boltic.toml already exists in the cloned repo
+			const bolticYamlPath = path.join(targetDir, "boltic.yaml");
+			const bolticTomlPath = path.join(targetDir, "boltic.toml");
+
+			if (fs.existsSync(bolticYamlPath)) {
+				// boltic.yaml exists - only update serverlessConfig with latest values
+				console.log(
+					chalk.cyan(
+						"📋 Found existing boltic.yaml, updating serverlessConfig..."
+					)
+				);
+				updateBolticYamlServerlessConfig(
+					bolticYamlPath,
+					serverlessData
+				);
+			} else if (fs.existsSync(bolticTomlPath)) {
+				// boltic.toml exists - only update serverlessConfig with latest values
+				console.log(
+					chalk.cyan(
+						"📋 Found existing boltic.toml, updating serverlessConfig..."
+					)
+				);
+				updateBolticTomlServerlessConfig(
+					bolticTomlPath,
+					serverlessData
+				);
+				return {
+					bolticConfigPath: bolticTomlPath,
+					configType: "toml",
+					cloned: true,
+				};
+			} else {
+				// Neither config file exists - create boltic.yaml from scratch
+				console.log(chalk.cyan("📋 Creating boltic.yaml..."));
+				const bolticYamlContent =
+					getPulledBolticYamlContent(serverlessData);
+				fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
+				console.log(chalk.green("✓ Created boltic.yaml"));
+			}
+
+			return {
+				bolticConfigPath: bolticYamlPath,
+				configType: "yaml",
+				cloned: true,
+			};
 		} catch (cloneErr) {
 			console.error(
 				chalk.red("\n❌ Failed to clone repository:"),
 				cloneErr.message
 			);
 
-			// Recreate the directory and add boltic-properties.yaml
+			// Recreate the directory and add boltic.yaml
 			fs.mkdirSync(targetDir, { recursive: true });
-			const bolticYamlPath = path.join(
-				targetDir,
-				"boltic-properties.yaml"
-			);
+			const bolticYamlPath = path.join(targetDir, "boltic.yaml");
 			const bolticYamlContent =
 				getPulledBolticYamlContent(serverlessData);
 			fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
 
-			return { bolticYamlPath, cloned: false };
+			return {
+				bolticConfigPath: bolticYamlPath,
+				configType: "yaml",
+				cloned: false,
+			};
 		}
 	} else {
 		// No SSH access - show error and instructions
@@ -1409,18 +1624,18 @@ export function createPulledServerlessFiles(
 		return handleGitTypePull(targetDir, serverlessData);
 	}
 
-	// Handle container-type serverless - only create boltic-properties.yaml
+	// Handle container-type serverless - only create boltic.yaml
 	if (serverlessType === "container") {
-		const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
+		const bolticYamlPath = path.join(targetDir, "boltic.yaml");
 		const bolticYamlContent = getPulledBolticYamlContent(serverlessData);
 		fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
 
-		console.log(chalk.green("✓ Created boltic-properties.yaml"));
+		console.log(chalk.green("✓ Created boltic.yaml"));
 		return { bolticYamlPath };
 	}
 
-	// For code-type: Create boltic-properties.yaml and handler file
-	const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
+	// For code-type: Create boltic.yaml and handler file
+	const bolticYamlPath = path.join(targetDir, "boltic.yaml");
 	const bolticYamlContent = getPulledBolticYamlContent(serverlessData);
 	fs.writeFileSync(bolticYamlPath, bolticYamlContent, "utf8");
 

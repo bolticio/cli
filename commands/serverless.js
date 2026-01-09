@@ -203,7 +203,7 @@ async function handleCreate(args = []) {
 
 		// Branch based on type
 		if (type === "git") {
-			// For git type: create empty folder with boltic-properties.yaml only
+			// For git type: create empty folder with boltic.yaml only
 			await handleGitTypeCreate(name, language, version, targetDir);
 			return;
 		}
@@ -331,15 +331,15 @@ async function handleCodeTypeCreate(name, language, version, targetDir) {
 		return;
 	}
 
-	// Update boltic-properties.yaml with serverlessId
+	// Update boltic.yaml with serverlessId inside serverlessConfig
 	const serverlessId = response.ID || response.data?.ID || response._id;
 	if (serverlessId) {
-		const bolticYamlPath = path.join(targetDir, "boltic-properties.yaml");
+		const bolticYamlPath = path.join(targetDir, "boltic.yaml");
 		let bolticYamlContent = fs.readFileSync(bolticYamlPath, "utf-8");
-		// Add serverlessId at the top after app line
+		// Add serverlessId inside serverlessConfig after the serverlessConfig: line
 		bolticYamlContent = bolticYamlContent.replace(
-			/^(app: .*)$/m,
-			`$1\nserverlessId: "${serverlessId}"`
+			/^(serverlessConfig:)$/m,
+			`$1\n  serverlessId: "${serverlessId}"`
 		);
 		fs.writeFileSync(bolticYamlPath, bolticYamlContent);
 	}
@@ -381,7 +381,7 @@ async function handleCodeTypeCreate(name, language, version, targetDir) {
 }
 
 /**
- * Handle git type serverless creation - creates folder with boltic-properties.yaml and calls create API
+ * Handle git type serverless creation - creates folder with boltic.yaml and calls create API
  */
 async function handleGitTypeCreate(name, language, version, targetDir) {
 	console.log(chalk.cyan("\n📁 Creating git-based serverless project..."));
@@ -451,14 +451,14 @@ async function handleGitTypeCreate(name, language, version, targetDir) {
 	const gitHttpUrl = gitRepo?.HtmlURL || "";
 	const gitCloneUrl = gitRepo?.CloneURL || "";
 
-	// Create boltic-properties.yaml with serverlessId
+	// Create boltic.yaml with serverlessId inside serverlessConfig
 	const bolticYamlContent = `app: "${name}"
-serverlessId: "${serverlessId}"
 region: "asia-south1"
 handler: "${HANDLER_MAPPING[language]}"
 language: "${language}/${version}"
 
 serverlessConfig:
+  serverlessId: "${serverlessId}"
   Name: "${name}"
   Description: ""
   Runtime: "git"
@@ -492,13 +492,11 @@ build:
 
 	try {
 		fs.writeFileSync(
-			path.join(targetDir, "boltic-properties.yaml"),
+			path.join(targetDir, "boltic.yaml"),
 			bolticYamlContent
 		);
 	} catch (err) {
-		console.error(
-			chalk.red(`\n❌ Failed to create boltic-properties.yaml`)
-		);
+		console.error(chalk.red(`\n❌ Failed to create boltic.yaml`));
 		console.error(chalk.red(`Error: ${err.message}`));
 		return;
 	}
@@ -619,7 +617,7 @@ build:
 }
 
 /**
- * Handle container type serverless creation - creates empty folder with boltic-properties.yaml
+ * Handle container type serverless creation - creates empty folder with boltic.yaml
  */
 async function handleContainerTypeCreate(name, targetDir) {
 	console.log(
@@ -690,12 +688,12 @@ async function handleContainerTypeCreate(name, targetDir) {
 
 	const serverlessId = response.ID;
 
-	// Create boltic-properties.yaml for container type
+	// Create boltic.yaml for container type with serverlessId inside serverlessConfig
 	const bolticYamlContent = `app: "${name}"
 region: "asia-south1"
-serverlessId: "${serverlessId}"
 
 serverlessConfig:
+  serverlessId: "${serverlessId}"
   Name: "${name}"
   Description: ""
   Runtime: "container"
@@ -728,13 +726,11 @@ build:
 
 	try {
 		fs.writeFileSync(
-			path.join(targetDir, "boltic-properties.yaml"),
+			path.join(targetDir, "boltic.yaml"),
 			bolticYamlContent
 		);
 	} catch (err) {
-		console.error(
-			chalk.red(`\n❌ Failed to create boltic-properties.yaml`)
-		);
+		console.error(chalk.red(`\n❌ Failed to create boltic.yaml`));
 		console.error(chalk.red(`Error: ${err.message}`));
 		return;
 	}
@@ -763,9 +759,7 @@ build:
 	});
 
 	console.log(chalk.yellow("📝 Next steps:"));
-	console.log(
-		chalk.dim("   1. To update configuration, edit boltic-properties.yaml")
-	);
+	console.log(chalk.dim("   1. To update configuration, edit boltic.yaml"));
 	console.log(
 		chalk.dim("   2. To publish changes: boltic serverless publish")
 	);
@@ -795,13 +789,11 @@ async function handlePublish(args = []) {
 			return;
 		}
 
-		// Step 2: Load boltic-properties.yaml config
+		// Step 2: Load boltic.yaml config
 		const config = loadBolticConfig(directory);
 		if (!config) {
 			console.error(
-				chalk.red(
-					"\n❌ boltic-properties.yaml not found in the directory"
-				)
+				chalk.red("\n❌ boltic.yaml not found in the directory")
 			);
 			console.log(
 				chalk.yellow(
@@ -814,20 +806,16 @@ async function handlePublish(args = []) {
 		// Step 3: Get app name and language from config
 		const appName = config.app;
 		const language = config.language; // e.g., "nodejs/20"
-		const serverlessId = config.serverlessId;
 		const serverlessConfig = config.serverlessConfig;
+		const serverlessId = serverlessConfig?.serverlessId;
 
 		if (!appName) {
-			console.error(
-				chalk.red("\n❌ App name not found in boltic-properties.yaml")
-			);
+			console.error(chalk.red("\n❌ App name not found in boltic.yaml"));
 			return;
 		}
 
 		if (!language && serverlessConfig?.Runtime !== "container") {
-			console.error(
-				chalk.red("\n❌ Language not found in boltic-properties.yaml")
-			);
+			console.error(chalk.red("\n❌ Language not found in boltic.yaml"));
 			return;
 		}
 
@@ -959,17 +947,15 @@ async function handleTest(args = []) {
 			return;
 		}
 
-		// Step 2: Load boltic-properties.yaml config
+		// Step 2: Load boltic.yaml config
 		const config = loadBolticConfig(directory);
 		if (!config) {
 			console.error(
-				chalk.red(
-					"\n❌ boltic-properties.yaml not found in the directory"
-				)
+				chalk.red("\n❌ boltic.yaml not found in the directory")
 			);
 			console.log(
 				chalk.yellow(
-					"You can only test code or container type serverless with boltic-properties.yaml"
+					"You can only test code or container type serverless with boltic.yaml"
 				)
 			);
 			return;
@@ -1004,7 +990,7 @@ async function handleTest(args = []) {
 		if (!language && config?.language) {
 			language = parseLanguageFromConfig(config.language);
 			console.log(
-				chalk.cyan("📋 Using language from boltic-properties.yaml: ") +
+				chalk.cyan("📋 Using language from boltic.yaml: ") +
 					chalk.bold.white(language)
 			);
 		}
@@ -1290,9 +1276,7 @@ async function handleContainerTest(config, directory, port) {
 
 	if (!image) {
 		console.error(
-			chalk.red(
-				"\n❌ Container image not found in boltic-properties.yaml"
-			)
+			chalk.red("\n❌ Container image not found in boltic.yaml")
 		);
 		console.log(
 			chalk.yellow(
@@ -1510,7 +1494,7 @@ async function handlePull(args) {
 		fs.mkdirSync(targetDir, { recursive: true });
 		console.log(chalk.cyan(`\n📁 Creating folder: ${folderName}`));
 
-		// Create the files (boltic-properties.yaml with serverlessId and serverlessConfig, handler file with code)
+		// Create the files (boltic.yaml with serverlessId and serverlessConfig, handler file with code)
 		try {
 			const result = createPulledServerlessFiles(
 				targetDir,
