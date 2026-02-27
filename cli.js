@@ -17,9 +17,51 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 		login: {
 			description: "Authenticate the user and save access token",
 			action: async (args) => {
-				// Support PAT-based login via flag: `boltic login --pat`
-				if (args.includes("--pat")) {
-					await AuthCommands.handlePatLogin();
+				// Support PAT-based login via flags, e.g.:
+				//   boltic login --pat XXXXX --account_id YYYYYY
+				//   boltic login --pat=XXXXX --account-id=YYYYYY
+				let patFromArg;
+				let accountIdFromArg;
+
+				for (let i = 0; i < args.length; i++) {
+					const arg = args[i];
+
+					if (arg === "--pat" && i + 1 < args.length) {
+						patFromArg = args[i + 1];
+						i++;
+						continue;
+					}
+
+					if (
+						(arg === "--account_id" || arg === "--account-id") &&
+						i + 1 < args.length
+					) {
+						accountIdFromArg = args[i + 1];
+						i++;
+						continue;
+					}
+
+					if (arg.startsWith("--pat=")) {
+						patFromArg = arg.split("=")[1];
+						continue;
+					}
+
+					if (
+						arg.startsWith("--account_id=") ||
+						arg.startsWith("--account-id=")
+					) {
+						accountIdFromArg = arg.split("=")[1];
+						continue;
+					}
+				}
+
+				// If any PAT-related flag is present, delegate to PAT login handler.
+				// `handlePatLogin` will decide whether to prompt based on which values are provided.
+				if (patFromArg || accountIdFromArg) {
+					await AuthCommands.handlePatLogin(
+						patFromArg,
+						accountIdFromArg
+					);
 					return;
 				}
 
