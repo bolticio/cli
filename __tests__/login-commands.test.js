@@ -145,6 +145,22 @@ describe("Login Commands", () => {
 				expect.stringContaining("Login Commands:")
 			);
 		});
+
+		it("should execute PAT login handler directly", async () => {
+			await LoginCommands.default.handlePatLogin(
+				"test-pat-token",
+				"test-account-id"
+			);
+
+			expect(mockStoreSecret).toHaveBeenCalledWith(
+				"pat",
+				"test-pat-token"
+			);
+			expect(mockStoreSecret).toHaveBeenCalledWith(
+				"account_id",
+				"test-account-id"
+			);
+		});
 	});
 
 	describe("handleLogin", () => {

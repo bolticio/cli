@@ -16,8 +16,15 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 	const commands = {
 		login: {
 			description: "Authenticate the user and save access token",
-			action: async () =>
-				await AuthCommands.handleLogin(consoleUrl, apiUrl, env),
+			action: async (args) => {
+				// Support PAT-based login via flag: `boltic login --pat`
+				if (args.includes("--pat")) {
+					await AuthCommands.handlePatLogin();
+					return;
+				}
+
+				await AuthCommands.handleLogin(consoleUrl, apiUrl, env);
+			},
 		},
 		integration: {
 			description: "Manage integrations (create, list)",

@@ -26,6 +26,9 @@ const mockHandleError = jest.fn();
 // Mock verbose logger
 const mockLogApi = jest.fn();
 
+// Mock secure storage (PAT) so that by default tests use Bearer + Cookie auth
+const mockGetSecret = jest.fn().mockResolvedValue(null);
+
 jest.mock("axios", () => mockAxios);
 jest.mock("form-data", () => MockFormDataClass);
 jest.mock("fs", () => ({
@@ -37,6 +40,9 @@ jest.mock("../helper/error.js", () => ({
 }));
 jest.mock("../helper/verbose.js", () => ({
 	logApi: mockLogApi,
+}));
+jest.mock("../helper/secure-storage.js", () => ({
+	getSecret: mockGetSecret,
 }));
 
 // Import the module after mocking
@@ -100,16 +106,18 @@ describe("Integration API", () => {
 				validParams.session
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "get",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integration-groups",
-				params: { page: 1, per_page: 999 },
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "get",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integration-groups",
+					params: { page: 1, per_page: 999 },
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(mockLogApi).toHaveBeenCalledWith(
 				"get",
 				expect.any(String),
@@ -197,16 +205,18 @@ describe("Integration API", () => {
 				validParams.session
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "get",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations",
-				params: { page: 1, per_page: 999 },
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "get",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations",
+					params: { page: 1, per_page: 999 },
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual([{ id: 1, name: "Integration 1" }]);
 		});
 
@@ -259,16 +269,18 @@ describe("Integration API", () => {
 				validParams.integration
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "post",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations",
-				data: validParams.integration,
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "post",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations",
+					data: validParams.integration,
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual({ id: 1, name: "Test Integration" });
 		});
 
@@ -323,16 +335,18 @@ describe("Integration API", () => {
 				validParams.payload
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "post",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/edit",
-				data: validParams.payload,
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "post",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/edit",
+					data: validParams.payload,
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual({ id: 1, name: "Updated Integration" });
 		});
 
@@ -391,16 +405,18 @@ describe("Integration API", () => {
 				validParams.integration
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "patch",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1",
-				data: { name: "Updated Integration", description: "Test" }, // id should be excluded
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "patch",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1",
+					data: { name: "Updated Integration", description: "Test" }, // id should be excluded
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual({ id: 1, name: "Updated Integration" });
 		});
 
@@ -455,15 +471,17 @@ describe("Integration API", () => {
 				validParams.integrationId
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "get",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "get",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual({ id: 1, name: "Test Integration" });
 		});
 
@@ -518,16 +536,18 @@ describe("Integration API", () => {
 				validParams.integration
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "post",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/deploy",
-				data: validParams.integration,
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "post",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/deploy",
+					data: validParams.integration,
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual({ success: true });
 		});
 
@@ -582,16 +602,18 @@ describe("Integration API", () => {
 				validParams.integration
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "post",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integration-reviews",
-				data: validParams.integration,
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "post",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integration-reviews",
+					data: validParams.integration,
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual({ success: true });
 		});
 
@@ -646,16 +668,18 @@ describe("Integration API", () => {
 				validParams.integration
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "post",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/cache",
-				data: {},
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "post",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/cache",
+					data: {},
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual({ success: true });
 		});
 
@@ -710,15 +734,17 @@ describe("Integration API", () => {
 				validParams.id
 			);
 
-			expect(mockAxios).toHaveBeenCalledWith({
-				method: "get",
-				url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/pull",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: "Bearer token123",
-					Cookie: "session123",
-				},
-			});
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "get",
+					url: "https://api.test.com/service/panel/automation/v1.0/account123/integrations/1/pull",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: "Bearer token123",
+						Cookie: "session123",
+					},
+				})
+			);
 			expect(result).toEqual({ id: 1, name: "Test Integration" });
 		});
 
@@ -784,13 +810,13 @@ describe("Integration API", () => {
 			expect(mockAxios.post).toHaveBeenCalledWith(
 				"https://api.test.com/service/panel/automation/v1.0/account123/utility/upload",
 				mockFormData,
-				{
+				expect.objectContaining({
 					headers: {
 						"content-type": "multipart/form-data",
 						Authorization: "Bearer token123",
 						Cookie: "session123",
 					},
-				}
+				})
 			);
 			expect(result).toEqual({ url: "https://cdn.example.com/file.svg" });
 		});

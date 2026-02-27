@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import open from "open";
+import readline from "readline";
 import { v4 as uuidv4 } from "uuid";
 import { getCliBearerToken, getCliSession } from "../api/login.js";
 import { getCurrentEnv } from "../helper/env.js";
@@ -30,6 +31,21 @@ const execute = async (args) => {
 
 	await commands[subCommand].action(args.slice(1));
 };
+
+// Prompt user for input from the terminal
+async function askQuestion(query) {
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+
+	return new Promise((resolve) => {
+		rl.question(query, (answer) => {
+			rl.close();
+			resolve(answer);
+		});
+	});
+}
 
 // Show available login commands
 function showHelp() {
@@ -161,6 +177,47 @@ async function handleLogin() {
 	);
 }
 
+// Handle PAT-based login command
+async function handlePatLogin(patFromArg, accountIdFromArg) {
+	let pat = patFromArg;
+	let accountId = accountIdFromArg;
+
+	if (!pat) {
+		console.log(chalk.cyan("\n🔐 Personal Access Token (PAT) login\n"));
+		pat = await askQuestion("Enter your PAT token: ");
+	}
+
+	if (!pat || !pat.trim()) {
+		console.log(chalk.red("\n❌ PAT token cannot be empty.\n"));
+		return;
+	}
+
+	if (!accountId) {
+		accountId = await askQuestion("Enter your Account ID: ");
+	}
+
+	if (!accountId || !accountId.trim()) {
+		console.log(chalk.red("\n❌ Account ID cannot be empty.\n"));
+		return;
+	}
+
+	try {
+		await storeSecret("pat", pat.trim());
+		await storeSecret("account_id", accountId.trim());
+		console.log(
+			chalk.green(
+				"\n✅ PAT token and Account ID stored securely. They will be used for future organization-related requests.\n"
+			)
+		);
+	} catch (error) {
+		console.error(
+			chalk.red(
+				`\n❌ Failed to store PAT credentials: ${error.message || error}\n`
+			)
+		);
+	}
+}
+
 // Handle logout command
 async function handleLogout() {
 	await deleteAllSecrets();
@@ -170,4 +227,4 @@ async function handleLogout() {
 	);
 }
 
-export default { execute, handleLogin, handleLogout };
+export default { execute, handleLogin, handlePatLogin, handleLogout };

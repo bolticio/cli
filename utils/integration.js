@@ -218,6 +218,17 @@ async function getSvgFilePath() {
 	if (pickedFile && fs.existsSync(pickedFile)) {
 		return pickedFile;
 	}
+
+	// Fallback: ask user to manually input the SVG path
+	const manualPath = await input({
+		message: "Enter the path to your SVG icon file:",
+	});
+
+	if (!manualPath || !fs.existsSync(manualPath)) {
+		return null;
+	}
+
+	return manualPath;
 }
 
 export { getSvgFilePath, pickSvgFile };
