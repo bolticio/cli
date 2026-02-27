@@ -12,6 +12,7 @@ import * as secureStorage from "../helper/secure-storage.js";
 jest.mock("../commands/login.js", () => ({
 	default: {
 		handleLogin: jest.fn(),
+		handlePatLogin: jest.fn(),
 		handleLogout: jest.fn(),
 		execute: jest.fn(),
 	},
@@ -42,6 +43,7 @@ describe("CLI Module", () => {
 
 		// Reset AuthCommands mock functions - this needs to happen before creating CLI
 		AuthCommands.default.handleLogin = jest.fn().mockResolvedValue();
+		AuthCommands.default.handlePatLogin = jest.fn().mockResolvedValue();
 		AuthCommands.default.handleLogout = jest.fn().mockResolvedValue();
 		AuthCommands.default.execute = jest.fn().mockResolvedValue();
 
@@ -85,6 +87,17 @@ describe("CLI Module", () => {
 			await expect(
 				cli.execute(["node", "cli.js", "login"])
 			).resolves.not.toThrow();
+
+			expect(AuthCommands.default.handleLogin).toHaveBeenCalled();
+		});
+
+		it("should handle login command with PAT flag", async () => {
+			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([]);
+
+			await cli.execute(["node", "cli.js", "login", "--pat"]);
+
+			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalled();
+			expect(AuthCommands.default.handleLogin).not.toHaveBeenCalled();
 		});
 
 		it("should handle logout command", async () => {
