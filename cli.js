@@ -22,26 +22,38 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 				//   boltic login --pat=XXXXX --account-id=YYYYYY
 				let patFromArg;
 				let accountIdFromArg;
+				let hasPatFlag = false;
+				let hasAccountIdFlag = false;
 
 				for (let i = 0; i < args.length; i++) {
 					const arg = args[i];
 
-					if (arg === "--pat" && i + 1 < args.length) {
-						patFromArg = args[i + 1];
-						i++;
+					if (arg === "--pat") {
+						hasPatFlag = true;
+						if (
+							i + 1 < args.length &&
+							!args[i + 1].startsWith("--")
+						) {
+							patFromArg = args[i + 1];
+							i++;
+						}
 						continue;
 					}
 
-					if (
-						(arg === "--account_id" || arg === "--account-id") &&
-						i + 1 < args.length
-					) {
-						accountIdFromArg = args[i + 1];
-						i++;
+					if (arg === "--account_id" || arg === "--account-id") {
+						hasAccountIdFlag = true;
+						if (
+							i + 1 < args.length &&
+							!args[i + 1].startsWith("--")
+						) {
+							accountIdFromArg = args[i + 1];
+							i++;
+						}
 						continue;
 					}
 
 					if (arg.startsWith("--pat=")) {
+						hasPatFlag = true;
 						patFromArg = arg.split("=")[1];
 						continue;
 					}
@@ -50,6 +62,7 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 						arg.startsWith("--account_id=") ||
 						arg.startsWith("--account-id=")
 					) {
+						hasAccountIdFlag = true;
 						accountIdFromArg = arg.split("=")[1];
 						continue;
 					}
@@ -57,7 +70,12 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 
 				// If any PAT-related flag is present, delegate to PAT login handler.
 				// `handlePatLogin` will decide whether to prompt based on which values are provided.
-				if (patFromArg || accountIdFromArg) {
+				if (
+					hasPatFlag ||
+					hasAccountIdFlag ||
+					patFromArg ||
+					accountIdFromArg
+				) {
 					await AuthCommands.handlePatLogin(
 						patFromArg,
 						accountIdFromArg
