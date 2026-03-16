@@ -3,6 +3,7 @@ import FormData from "form-data";
 import fs from "fs";
 import https from "https";
 import { handleError } from "../helper/error.js";
+import { getSecret } from "../helper/secure-storage.js";
 import { logApi } from "../helper/verbose.js";
 
 const getHttpsAgentForUrl = (baseUrl) => {
@@ -16,14 +17,39 @@ const getHttpsAgentForUrl = (baseUrl) => {
 		) {
 			return new https.Agent({ rejectUnauthorized: false });
 		}
-	} catch (_) {
+	} catch {
 		// ignore URL parse errors and fall back to default agent
 	}
 	return undefined;
 };
 
-const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
-	if (!token || !session || !accountId) {
+const buildAuthHeaders = async (token, session) => {
+	const pat = await getSecret("pat");
+
+	// If PAT exists, prefer PAT-based auth and do not send bearer/session
+	if (pat && pat.trim()) {
+		return {
+			"x-boltic-token": pat.trim(),
+		};
+	}
+
+	// Fallback to existing Bearer + Cookie auth
+	const headers = {};
+	if (token) {
+		headers.Authorization = `Bearer ${token}`;
+	}
+	if (session) {
+		headers.Cookie = session;
+	}
+	return headers;
+};
+
+const ensureAuthenticatedOrExit = async (accountId, token, session) => {
+	const pat = await getSecret("pat");
+	const hasPatAuth = pat && pat.trim() && accountId;
+	const hasSessionAuth = token && session && accountId;
+
+	if (!hasPatAuth && !hasSessionAuth) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -31,7 +57,12 @@ const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 		console.log("\x1b[32m$ boltic login\x1b[0m\n");
 		process.exit(1); // Exit the CLI with an error code
 	}
+};
+
+const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const axiosOptions = {
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integration-groups`,
@@ -41,8 +72,7 @@ const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 			},
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};
@@ -56,15 +86,9 @@ const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 };
 
 const listAllIntegrations = async (apiUrl, token, accountId, session) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const axiosOptions = {
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations`,
@@ -74,8 +98,7 @@ const listAllIntegrations = async (apiUrl, token, accountId, session) => {
 			},
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};
@@ -95,23 +118,16 @@ const saveIntegration = async (
 	session,
 	integration
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations`,
 			data: integration,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -122,24 +138,17 @@ const saveIntegration = async (
 };
 
 const editIntegration = async (apiUrl, token, accountId, session, payload) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
 	const { id } = payload;
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}/edit`,
 			data: payload,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -157,15 +166,9 @@ const updateIntegration = async (
 	session,
 	integration
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const { id, ...rest } = integration;
 		const response = await axios({
 			method: "patch",
@@ -173,8 +176,7 @@ const updateIntegration = async (
 			data: rest,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -191,23 +193,15 @@ const getIntegrationById = async (
 	session,
 	integrationId
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
-
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integrationId}`,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -224,23 +218,15 @@ const getAuthenticationByIntegrationId = async (
 	session,
 	integrationId
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
-
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}integrations/${integrationId}/authentication`,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -290,22 +276,15 @@ const getConfigurationByIntegrationId = async (
 	accountId,
 	integrationId
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}integrations/${integrationId}/configuration`,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -322,23 +301,16 @@ const syncIntegration = async (
 	session,
 	integration
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integration.integration_id}/deploy`,
 			data: integration,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -355,15 +327,8 @@ const sendIntegrationForReview = async (
 	session,
 	integration
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integration-reviews`,
@@ -383,24 +348,16 @@ const sendIntegrationForReview = async (
 
 const purgeCache = async (apiUrl, token, accountId, session, integration) => {
 	const { integration_id } = integration;
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
-
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integration_id}/cache`,
 			data: {},
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -411,22 +368,15 @@ const purgeCache = async (apiUrl, token, accountId, session, integration) => {
 };
 
 const pullIntegration = async (apiUrl, token, accountId, session, id) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}/pull`,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...authHeaders,
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -444,20 +394,13 @@ const uploadFileToCloud = async (
 	session,
 	filePath
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1);
-	}
-
 	if (!fs.existsSync(filePath)) {
 		throw new Error("File does not exist: " + filePath);
 	}
 
 	try {
+		await ensureAuthenticatedOrExit(accountId, token, session);
+		const authHeaders = await buildAuthHeaders(token, session);
 		const form = new FormData();
 		form.append("files", fs.createReadStream(filePath));
 
@@ -467,8 +410,7 @@ const uploadFileToCloud = async (
 			{
 				headers: {
 					...form.getHeaders(),
-					Authorization: `Bearer ${token}`,
-					Cookie: session,
+					...authHeaders,
 				},
 				httpsAgent: getHttpsAgentForUrl(apiUrl),
 			}

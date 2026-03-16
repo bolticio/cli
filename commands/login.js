@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import open from "open";
+import readline from "readline";
 import { v4 as uuidv4 } from "uuid";
 import { getCliBearerToken, getCliSession } from "../api/login.js";
 import { getCurrentEnv } from "../helper/env.js";
@@ -28,8 +29,72 @@ const execute = async (args) => {
 		return;
 	}
 
+	// Special handling for `boltic login` to support PAT-based login via flags:
+	//   boltic login --pat XXXXX --account_id YYYYYY
+	if (subCommand === "login") {
+		const options = args.slice(1);
+		let patFromArg;
+		let accountIdFromArg;
+
+		for (let i = 0; i < options.length; i++) {
+			const arg = options[i];
+
+			if (arg === "--pat" && i + 1 < options.length) {
+				patFromArg = options[i + 1];
+				i++;
+				continue;
+			}
+
+			if (
+				(arg === "--account_id" || arg === "--account-id") &&
+				i + 1 < options.length
+			) {
+				accountIdFromArg = options[i + 1];
+				i++;
+				continue;
+			}
+
+			if (arg.startsWith("--pat=")) {
+				patFromArg = arg.split("=")[1];
+				continue;
+			}
+
+			if (
+				arg.startsWith("--account_id=") ||
+				arg.startsWith("--account-id=")
+			) {
+				accountIdFromArg = arg.split("=")[1];
+				continue;
+			}
+		}
+
+		// If PAT flags are provided, use PAT-based login. Otherwise, fall back to browser-based login.
+		if (patFromArg || accountIdFromArg) {
+			await handlePatLogin(patFromArg, accountIdFromArg);
+			return;
+		}
+
+		await handleLogin();
+		return;
+	}
+
 	await commands[subCommand].action(args.slice(1));
 };
+
+// Prompt user for input from the terminal
+async function askQuestion(query) {
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+
+	return new Promise((resolve) => {
+		rl.question(query, (answer) => {
+			rl.close();
+			resolve(answer);
+		});
+	});
+}
 
 // Show available login commands
 function showHelp() {
@@ -161,6 +226,67 @@ async function handleLogin() {
 	);
 }
 
+// Handle PAT-based login command
+async function handlePatLogin(patFromArg, accountIdFromArg) {
+	let pat = patFromArg && patFromArg.trim();
+	let accountId = accountIdFromArg && accountIdFromArg.trim();
+
+	// If both values are provided via CLI flags, do not prompt at all.
+	if (pat && accountId) {
+		try {
+			await storeSecret("pat", pat);
+			await storeSecret("account_id", accountId);
+			console.log(
+				chalk.green(
+					"\n✅ PAT token and Account ID stored securely. They will be used for future organization-related requests.\n"
+				)
+			);
+		} catch (error) {
+			console.error(
+				chalk.red(
+					`\n❌ Failed to store PAT credentials: ${error.message || error}\n`
+				)
+			);
+		}
+		return;
+	}
+
+	if (!pat) {
+		console.log(chalk.cyan("\n🔐 Personal Access Token (PAT) login\n"));
+		pat = (await askQuestion("Enter your PAT token: ")).trim();
+	}
+
+	if (!pat) {
+		console.log(chalk.red("\n❌ PAT token cannot be empty.\n"));
+		return;
+	}
+
+	if (!accountId) {
+		accountId = (await askQuestion("Enter your Account ID: ")).trim();
+	}
+
+	if (!accountId) {
+		console.log(chalk.red("\n❌ Account ID cannot be empty.\n"));
+		return;
+	}
+
+	try {
+		await storeSecret("pat", pat);
+		await storeSecret("account_id", accountId);
+		console.log(
+			chalk.green(
+				"\n✅ PAT token and Account ID stored securely. They will be used for future organization-related requests.\n"
+			)
+		);
+	} catch (error) {
+		console.error(
+			chalk.red(
+				`\n❌ Failed to store PAT credentials: ${error.message || error}\n`
+			)
+		);
+	}
+}
+
 // Handle logout command
 async function handleLogout() {
 	await deleteAllSecrets();
@@ -170,4 +296,4 @@ async function handleLogout() {
 	);
 }
 
-export default { execute, handleLogin, handleLogout };
+export default { execute, handleLogin, handlePatLogin, handleLogout };

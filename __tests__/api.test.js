@@ -4,6 +4,7 @@ import { jest } from "@jest/globals";
 const mockHandleError = jest.fn();
 const mockLogApi = jest.fn();
 const mockAxios = jest.fn();
+const mockGetSecret = jest.fn().mockResolvedValue(null);
 
 jest.mock("../helper/error.js", () => ({
 	handleError: mockHandleError,
@@ -11,6 +12,10 @@ jest.mock("../helper/error.js", () => ({
 
 jest.mock("../helper/verbose.js", () => ({
 	logApi: mockLogApi,
+}));
+
+jest.mock("../helper/secure-storage.js", () => ({
+	getSecret: mockGetSecret,
 }));
 
 jest.mock("../config/environments.js", () => ({
