@@ -47,6 +47,7 @@ module.exports = {
 		"/node_modules/",
 		"/__tests__/",
 		"/coverage/",
+		"/test-func/",
 		"babel.config.cjs",
 		"jest.config.cjs",
 		"eslint.config.js",
