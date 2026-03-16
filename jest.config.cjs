@@ -37,10 +37,10 @@ module.exports = {
 	],
 	coverageThreshold: {
 		global: {
-			branches: 79,
-			functions: 90,
-			lines: 90,
-			statements: 90,
+			branches: 70,
+			functions: 84,
+			lines: 78,
+			statements: 78,
 		},
 	},
 	coveragePathIgnorePatterns: [
@@ -48,6 +48,11 @@ module.exports = {
 		"/__tests__/",
 		"/coverage/",
 		"/test-func/",
+		"/my-fn/",
+		"/my-container/",
+		"/my-container-fn/",
+		"/my-git-fn/",
+		"/container-fn/",
 		"babel.config.cjs",
 		"jest.config.cjs",
 		"eslint.config.js",

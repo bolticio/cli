@@ -1,6 +1,6 @@
 # ⚡ Boltic CLI
 
-> **Professional CLI for interacting with the Boltic platform — create, manage, and publish integrations, workflows, MCPs, and more with enterprise-grade features and a seamless developer experience.**
+> **Professional CLI for interacting with the Boltic platform — create, manage, and publish integrations, serverless functions, workflows, MCPs, and more with enterprise-grade features and a seamless developer experience.**
 
 [![NPM Version](https://img.shields.io/npm/v/@boltic/cli)](https://www.npmjs.com/package/@boltic/cli)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Repo-blue?logo=github)](https://github.com/bolticio/cli)
@@ -29,6 +29,7 @@
 - [🔐 Authentication](#-authentication)
 - [🧩 Integration Management](#-integration-management)
 - [🧠 MCP](#-mcp-model-context-protocol)
+- [⚡ Serverless Functions](#-serverless-functions)
 - [📚 Command Reference](#-command-reference)
 - [🛠️ Development Workflow](#️-development-workflow)
 - [🔧 Configuration](#-configuration)
@@ -44,6 +45,7 @@
 
 - 🔐 **Secure Authentication** - Enterprise-grade token management with secure storage
 - 🚀 **Rapid Development** - Create workflows, integrations, and more in minutes, not hours
+- ⚡ **Serverless Functions** - Deploy functions in Node.js, Python, Golang, or Java with local testing
 - 📦 **Smart Project Management** - Automated folder structure and configuration
 - 🔄 **Real-time Synchronization** - Instant sync with Boltic Cloud platform
 - 🎯 **Type-safe Development** - Support for Workflow Activities and Triggers
@@ -69,11 +71,14 @@ boltic login
 # Create your first integration
 boltic integration create
 
-# Sync your changes
-boltic integration sync
+# Or create a serverless function
+boltic serverless create --type blueprint --name my-api --language nodejs
 
-# Submit for review
-boltic integration submit
+# Test locally
+boltic serverless test
+
+# Deploy to Boltic Cloud
+boltic serverless publish
 ```
 
 ---
@@ -299,6 +304,107 @@ boltic mcp setup https://mcp.boltic.io/sse my-boltic --client claude
 
 ---
 
+## ⚡ Serverless Functions
+
+Create, test, and deploy serverless functions on the Boltic platform with support for multiple languages and deployment types.
+
+### Supported Languages
+
+| Language | Version | Handler |
+|----------|---------|---------|
+| Node.js  | 20      | `handler.handler` |
+| Python   | 3       | `index.handler` |
+| Golang   | 1.22    | `Handler` |
+| Java     | 17      | `Handler` |
+
+### Deployment Types
+
+| Type | Description |
+|------|-------------|
+| **Blueprint** | Write code directly in the CLI-generated project |
+| **Git** | Deploy from a Git repository |
+| **Container** | Deploy a Docker container |
+
+### Creating Serverless Functions
+
+```bash
+# Interactive mode (prompts for all options)
+boltic serverless create
+
+# Create a blueprint serverless function
+boltic serverless create --type blueprint --name my-api --language nodejs
+
+# Create a git-based serverless function
+boltic serverless create --type git --name my-git-func --language python
+
+# Create a container-based serverless function
+boltic serverless create --type container --name my-container
+
+# Specify custom directory
+boltic serverless create --type blueprint --name my-function --language python --directory ./projects
+```
+
+#### Generated Project Structure
+
+```
+my-serverless/
+├── boltic.yaml          # Configuration file with serverless settings
+├── handler.js           # Handler file (Node.js) or index.py (Python), etc.
+└── package.json         # Dependencies (for Node.js projects)
+```
+
+### Testing Locally
+
+```bash
+# Auto-detect language and run on default port (8080)
+boltic serverless test
+
+# Specify custom port
+boltic serverless test --port 3000
+
+# Test from specific directory
+boltic serverless test --directory ./my-function
+```
+
+### Publishing
+
+```bash
+# Publish from current directory
+boltic serverless publish
+
+# Publish from specific directory
+boltic serverless publish --directory ./my-function
+```
+
+### Pulling Existing Functions
+
+```bash
+# Pull a serverless function (interactive selection)
+boltic serverless pull
+
+# Pull to a specific path
+boltic serverless pull --path ./projects
+```
+
+### Listing Functions
+
+```bash
+# List all serverless functions
+boltic serverless list
+```
+
+### Checking Status
+
+```bash
+# Check status (interactive selection)
+boltic serverless status
+
+# Check status by name
+boltic serverless status --name my-function
+```
+
+---
+
 ## 📚 Command Reference
 
 ### Core Commands
@@ -328,6 +434,18 @@ boltic mcp setup https://mcp.boltic.io/sse my-boltic --client claude
 | ------------------ | -------------------------------------------- | --------------------------------- |
 | `boltic mcp help`  | Show help for MCP sub-commands               |                                   |
 | `boltic mcp setup` | Configure an MCP server for a specific client| `--client <name>` `--name <alias>`|
+
+### Serverless Commands
+
+| Command                      | Description                          | Options                                              |
+| ---------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| `boltic serverless create`   | Create a new serverless function     | `--type, -t` `--name, -n` `--language, -l` `--directory, -d` |
+| `boltic serverless test`     | Test serverless function locally     | `--port, -p` `--language, -l` `--directory, -d`      |
+| `boltic serverless publish`  | Publish/deploy serverless function   | `--directory, -d`                                    |
+| `boltic serverless pull`     | Pull existing serverless function    | `--path`                                             |
+| `boltic serverless list`     | List all serverless functions        |                                                      |
+| `boltic serverless status`   | Show status of a serverless function | `--name, -n`                                         |
+| `boltic serverless help`     | Show help for serverless commands    |                                                      |
 
 ### Help and Documentation
 

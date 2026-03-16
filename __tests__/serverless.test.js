@@ -91,6 +91,11 @@ jest.mock("../helper/verbose.js", () => ({
 // Mock axios
 jest.mock("axios", () => mockAxios);
 
+// Mock pollServerlessStatus to return immediately for command tests
+const mockPollServerlessStatus = jest
+	.fn()
+	.mockResolvedValue({ success: true, status: "running" });
+
 // ============================================================================
 // HELPER TESTS
 // ============================================================================
@@ -2407,6 +2412,12 @@ describe("Serverless Commands", () => {
 	let mockConsoleError;
 	let mockProcessExit;
 	let mockProcessOn;
+	let mockFsExists;
+	let mockFsRead;
+	let mockFsWrite;
+	let mockFsMkdir;
+	let mockFsRm;
+	let mockFsUnlink;
 
 	beforeAll(async () => {
 		// Reset modules to get fresh import with mocks
@@ -2416,6 +2427,17 @@ describe("Serverless Commands", () => {
 		jest.doMock("../helper/env.js", () => ({
 			getCurrentEnv: mockGetCurrentEnv,
 		}));
+
+		// Mock helper/serverless.js to make pollServerlessStatus return immediately
+		jest.doMock("../helper/serverless.js", () => {
+			const actual = jest.requireActual("../helper/serverless.js");
+			return {
+				...actual,
+				pollServerlessStatus: jest
+					.fn()
+					.mockResolvedValue({ success: true, status: "running" }),
+			};
+		});
 
 		ServerlessCommands = await import("../commands/serverless.js");
 	});
@@ -2999,6 +3021,1015 @@ describe("Serverless Commands", () => {
 			expect(mockConsoleLog).toHaveBeenCalledWith(
 				expect.stringContaining("git")
 			);
+		});
+	});
+
+	describe("handleCodeTypeCreate flow", () => {
+		beforeEach(() => {
+			jest.spyOn(fs, "existsSync").mockReturnValue(false);
+			jest.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+			jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+			jest.spyOn(fs, "readFileSync").mockReturnValue(
+				'console.log("test")'
+			);
+			jest.spyOn(fs, "rmSync").mockImplementation(() => {});
+		});
+
+		afterEach(() => {
+			jest.restoreAllMocks();
+		});
+
+		it("should create code type serverless and show creation message", async () => {
+			// This test verifies the initial part of code type creation
+			// The full flow would timeout due to polling, so we just verify it starts
+			mockSearch.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"code",
+				"-n",
+				"test-fn",
+				"-l",
+				"nodejs",
+			]);
+
+			// Verify the type was displayed
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("code")
+			);
+		});
+
+		it("should handle create API failure", async () => {
+			mockGetCurrentEnv.mockResolvedValue({
+				apiUrl: "https://api.test.com",
+				token: "test-token",
+				accountId: "test-account",
+				session: "test-session",
+			});
+			mockAxios.mockResolvedValue(null);
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"code",
+				"-n",
+				"test-fn",
+				"-l",
+				"nodejs",
+			]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Failed to create serverless")
+			);
+		});
+
+		it("should handle missing authentication", async () => {
+			mockGetCurrentEnv.mockResolvedValue({
+				apiUrl: "https://api.test.com",
+				token: null,
+				session: null,
+			});
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"code",
+				"-n",
+				"test-fn",
+				"-l",
+				"nodejs",
+			]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Not authenticated")
+			);
+		});
+
+		it("should handle file creation errors", async () => {
+			jest.spyOn(fs, "writeFileSync").mockImplementation(() => {
+				throw new Error("Write failed");
+			});
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"code",
+				"-n",
+				"test-fn",
+				"-l",
+				"nodejs",
+			]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Failed to create template files")
+			);
+		});
+
+		it("should handle python language selection", async () => {
+			mockSearch.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"code",
+				"-n",
+				"py-fn",
+				"-l",
+				"python",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should handle golang language selection", async () => {
+			mockSearch.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"code",
+				"-n",
+				"go-fn",
+				"-l",
+				"golang",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should handle java language selection", async () => {
+			mockSearch.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"code",
+				"-n",
+				"java-fn",
+				"-l",
+				"java",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+	});
+
+	describe("handleGitTypeCreate flow", () => {
+		beforeEach(() => {
+			jest.spyOn(fs, "existsSync").mockReturnValue(false);
+			jest.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+			jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+		});
+
+		afterEach(() => {
+			jest.restoreAllMocks();
+		});
+
+		it("should create git type serverless", async () => {
+			mockGetCurrentEnv.mockResolvedValue({
+				apiUrl: "https://api.test.com",
+				token: "test-token",
+				accountId: "test-account",
+				session: "test-session",
+			});
+			mockAxios.mockResolvedValue({
+				data: { ID: "git-serverless-id" },
+				status: 200,
+			});
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"git",
+				"-n",
+				"git-fn",
+				"-l",
+				"nodejs",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("git")
+			);
+		});
+	});
+
+	describe("handleContainerTypeCreate flow", () => {
+		it("should show container type selection", async () => {
+			mockSearch.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"container",
+				"-n",
+				"container-fn",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("container")
+			);
+		});
+	});
+
+	describe("handlePublish flow", () => {
+		beforeEach(() => {
+			jest.spyOn(fs, "existsSync").mockImplementation((p) => {
+				if (p.includes("boltic.yaml")) return true;
+				if (p.includes("handler.js")) return true;
+				return false;
+			});
+			jest.spyOn(fs, "readFileSync").mockImplementation((p) => {
+				if (p.includes("boltic.yaml")) {
+					return `app: "test-app"
+region: "asia-south1"
+handler: "handler.handler"
+language: "nodejs/20"
+serverlessConfig:
+  serverlessId: "existing-id"
+  Runtime: "code"`;
+				}
+				return "export const handler = () => {}";
+			});
+			jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+		});
+
+		afterEach(() => {
+			jest.restoreAllMocks();
+		});
+
+		it("should publish existing serverless", async () => {
+			mockGetCurrentEnv.mockResolvedValue({
+				apiUrl: "https://api.test.com",
+				token: "test-token",
+				accountId: "test-account",
+				session: "test-session",
+			});
+			mockAxios.mockResolvedValue({
+				data: { ID: "existing-id" },
+				status: 200,
+			});
+
+			await ServerlessCommands.default.execute(["publish"]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("SERVERLESS PUBLISH")
+			);
+		});
+
+		it("should handle publish when no config found", async () => {
+			jest.spyOn(fs, "existsSync").mockReturnValue(false);
+
+			await ServerlessCommands.default.execute(["publish"]);
+
+			// Shows the publish header even when no config
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("SERVERLESS PUBLISH")
+			);
+		});
+	});
+
+	describe("handleTest flow", () => {
+		it("should execute test command without throwing", async () => {
+			await expect(
+				ServerlessCommands.default.execute(["test"])
+			).resolves.not.toThrow();
+		});
+
+		it("should execute test with port argument", async () => {
+			await expect(
+				ServerlessCommands.default.execute(["test", "-p", "8080"])
+			).resolves.not.toThrow();
+		});
+
+		it("should execute test with retain flag", async () => {
+			await expect(
+				ServerlessCommands.default.execute(["test", "--retain"])
+			).resolves.not.toThrow();
+		});
+	});
+
+	describe("handlePull with successful selection", () => {
+		beforeEach(() => {
+			jest.spyOn(fs, "existsSync").mockReturnValue(false);
+			jest.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+			jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+		});
+
+		afterEach(() => {
+			jest.restoreAllMocks();
+		});
+
+		it("should pull and create files for code type", async () => {
+			mockAxios.mockImplementation((config) => {
+				if (
+					config.url.includes("/apps") &&
+					!config.url.includes("/apps/")
+				) {
+					return Promise.resolve({
+						data: {
+							data: [
+								{
+									ID: "fn-1",
+									Status: "running",
+									Config: {
+										Name: "my-fn",
+										Runtime: "code",
+										CodeOpts: {
+											Language: "nodejs/20",
+											Code: 'console.log("hi")',
+										},
+									},
+								},
+							],
+						},
+						status: 200,
+					});
+				}
+				return Promise.resolve({
+					data: {
+						ID: "fn-1",
+						Config: {
+							Name: "my-fn",
+							Runtime: "code",
+							CodeOpts: {
+								Language: "nodejs/20",
+								Code: 'console.log("hi")',
+							},
+							Env: {},
+							PortMap: [],
+							Scaling: {
+								AutoStop: false,
+								Min: 1,
+								Max: 1,
+								MaxIdleTime: 300,
+							},
+							Resources: {
+								CPU: 0.1,
+								MemoryMB: 128,
+								MemoryMaxMB: 128,
+							},
+							Timeout: 60,
+						},
+					},
+					status: 200,
+				});
+			});
+			mockSearch.mockResolvedValue({
+				ID: "fn-1",
+				Status: "running",
+				Config: {
+					Name: "my-fn",
+					Runtime: "code",
+					CodeOpts: {
+						Language: "nodejs/20",
+						Code: 'console.log("hi")',
+					},
+				},
+			});
+
+			await ServerlessCommands.default.execute(["pull"]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("Pulling serverless")
+			);
+		});
+	});
+
+	describe("handleStatus with function found", () => {
+		it("should display detailed status", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "fn-1",
+							Status: "running",
+							Config: {
+								Name: "status-test",
+								Runtime: "code",
+								CodeOpts: { Language: "nodejs/20" },
+							},
+							LastBuild: {
+								ID: "build-1",
+								StatusHistory: [
+									{
+										Status: "success",
+										Timestamp: Date.now(),
+									},
+								],
+							},
+						},
+					],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"-n",
+				"status-test",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("status-test")
+			);
+		});
+
+		it("should handle status with container type", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "fn-2",
+							Status: "running",
+							Config: {
+								Name: "container-fn",
+								Runtime: "container",
+								ContainerOpts: { Image: "nginx:latest" },
+							},
+						},
+					],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"-n",
+				"container-fn",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should handle status with git type", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "fn-3",
+							Status: "building",
+							Config: {
+								Name: "git-fn",
+								Runtime: "git",
+								CodeOpts: { Language: "python/3" },
+							},
+						},
+					],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"-n",
+				"git-fn",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+	});
+
+	describe("handleList with selection", () => {
+		it("should display selected serverless details", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "fn-1",
+							Status: "running",
+							Config: {
+								Name: "list-fn",
+								Runtime: "code",
+								CodeOpts: { Language: "nodejs/20" },
+							},
+						},
+					],
+				},
+			});
+			mockSearch.mockResolvedValue({
+				ID: "fn-1",
+				Status: "running",
+				Config: {
+					Name: "list-fn",
+					Runtime: "code",
+					CodeOpts: { Language: "nodejs/20" },
+				},
+			});
+
+			await ServerlessCommands.default.execute(["list"]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("list-fn")
+			);
+		});
+
+		it("should display container details in list", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "fn-2",
+							Status: "running",
+							Config: {
+								Name: "container-list",
+								Runtime: "container",
+								ContainerOpts: { Image: "redis:latest" },
+							},
+						},
+					],
+				},
+			});
+			mockSearch.mockResolvedValue({
+				ID: "fn-2",
+				Status: "running",
+				Config: {
+					Name: "container-list",
+					Runtime: "container",
+					ContainerOpts: { Image: "redis:latest" },
+				},
+			});
+
+			await ServerlessCommands.default.execute(["list"]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("container-list")
+			);
+		});
+	});
+
+	// Additional comprehensive tests for better coverage
+	describe("handlePublish comprehensive tests", () => {
+		beforeEach(() => {
+			jest.spyOn(fs, "existsSync").mockImplementation((p) => {
+				if (typeof p === "string") {
+					if (p.includes("boltic.yaml")) return true;
+					if (p.includes("handler.js")) return true;
+					if (p.includes("index.py")) return true;
+				}
+				return true;
+			});
+			jest.spyOn(fs, "readFileSync").mockImplementation((p) => {
+				if (typeof p === "string" && p.includes("boltic.yaml")) {
+					return `app: "test-app"
+region: "asia-south1"
+handler: "handler.handler"
+language: "nodejs/20"
+serverlessConfig:
+  serverlessId: "existing-id"
+  Runtime: "code"
+  Name: "test-app"`;
+				}
+				return 'export const handler = () => { return "hello"; }';
+			});
+			jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+		});
+
+		afterEach(() => {
+			jest.restoreAllMocks();
+		});
+
+		it("should publish with valid config and code", async () => {
+			mockAxios.mockResolvedValue({
+				data: { ID: "existing-id", Name: "test-app" },
+				status: 200,
+			});
+
+			await ServerlessCommands.default.execute(["publish"]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("SERVERLESS PUBLISH")
+			);
+		});
+
+		it("should handle directory not found", async () => {
+			jest.spyOn(fs, "existsSync").mockReturnValue(false);
+
+			await ServerlessCommands.default.execute([
+				"publish",
+				"-d",
+				"/nonexistent",
+			]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Directory does not exist")
+			);
+		});
+
+		it("should handle publish with various configs", async () => {
+			// Test with standard config - command should execute
+			mockAxios.mockResolvedValue({
+				data: { ID: "test-id", Name: "test-app" },
+				status: 200,
+			});
+
+			await expect(
+				ServerlessCommands.default.execute(["publish"])
+			).resolves.not.toThrow();
+		});
+
+		it("should handle container runtime publish", async () => {
+			jest.spyOn(fs, "readFileSync").mockImplementation((p) => {
+				if (typeof p === "string" && p.includes("boltic.yaml")) {
+					return `app: "container-app"
+region: "asia-south1"
+serverlessConfig:
+  serverlessId: "container-id"
+  Runtime: "container"
+  Name: "container-app"
+  ContainerOpts:
+    Image: "nginx:latest"`;
+				}
+				return "";
+			});
+			mockAxios.mockResolvedValue({
+				data: { ID: "container-id" },
+				status: 200,
+			});
+
+			await ServerlessCommands.default.execute(["publish"]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+	});
+
+	describe("handleTest comprehensive tests", () => {
+		it("should execute test command", async () => {
+			// Test command requires proper setup, just verify it doesn't crash
+			await expect(
+				ServerlessCommands.default.execute(["test"])
+			).resolves.not.toThrow();
+		});
+	});
+
+	describe("handleCreate type selection coverage", () => {
+		it("should prompt for type when not provided", async () => {
+			mockSearch.mockResolvedValueOnce("code"); // type selection
+			mockSearch.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute(["create"]);
+
+			expect(mockSearch).toHaveBeenCalled();
+		});
+
+		it("should prompt for name when not provided", async () => {
+			mockInput.mockResolvedValueOnce("my-serverless");
+			mockSearch.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute(["create", "-t", "code"]);
+
+			expect(mockInput).toHaveBeenCalled();
+		});
+
+		it("should prompt for language when not provided", async () => {
+			mockSearch.mockResolvedValueOnce("nodejs"); // language
+			mockSearch.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"code",
+				"-n",
+				"my-fn",
+			]);
+
+			expect(mockSearch).toHaveBeenCalled();
+		});
+
+		it("should skip language selection for container type", async () => {
+			mockInput.mockRejectedValue(
+				new Error("User force closed the prompt")
+			);
+
+			await ServerlessCommands.default.execute([
+				"create",
+				"-t",
+				"container",
+				"-n",
+				"my-container",
+			]);
+
+			// Container doesn't need language
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("container")
+			);
+		});
+	});
+
+	describe("handlePull comprehensive tests", () => {
+		beforeEach(() => {
+			jest.spyOn(fs, "existsSync").mockReturnValue(false);
+			jest.spyOn(fs, "mkdirSync").mockImplementation(() => {});
+			jest.spyOn(fs, "writeFileSync").mockImplementation(() => {});
+		});
+
+		afterEach(() => {
+			jest.restoreAllMocks();
+		});
+
+		it("should handle pull with git runtime", async () => {
+			mockAxios.mockImplementation((config) => {
+				if (config.url && !config.url.includes("/apps/")) {
+					return Promise.resolve({
+						data: {
+							data: [
+								{
+									ID: "git-fn-id",
+									Status: "running",
+									Config: {
+										Name: "git-fn",
+										Runtime: "git",
+										CodeOpts: { Language: "nodejs/20" },
+									},
+								},
+							],
+						},
+						status: 200,
+					});
+				}
+				return Promise.resolve({
+					data: {
+						ID: "git-fn-id",
+						Config: {
+							Name: "git-fn",
+							Runtime: "git",
+							CodeOpts: { Language: "nodejs/20" },
+							Env: {},
+							PortMap: [],
+							Scaling: {
+								AutoStop: false,
+								Min: 1,
+								Max: 1,
+								MaxIdleTime: 300,
+							},
+							Resources: {
+								CPU: 0.1,
+								MemoryMB: 128,
+								MemoryMaxMB: 128,
+							},
+							Timeout: 60,
+						},
+					},
+					status: 200,
+				});
+			});
+			mockSearch.mockResolvedValue({
+				ID: "git-fn-id",
+				Status: "running",
+				Config: {
+					Name: "git-fn",
+					Runtime: "git",
+					CodeOpts: { Language: "nodejs/20" },
+				},
+			});
+
+			await ServerlessCommands.default.execute(["pull"]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("Pulling serverless")
+			);
+		});
+
+		it("should handle pull with container runtime", async () => {
+			mockAxios.mockImplementation((config) => {
+				if (config.url && !config.url.includes("/apps/")) {
+					return Promise.resolve({
+						data: {
+							data: [
+								{
+									ID: "container-fn-id",
+									Status: "running",
+									Config: {
+										Name: "container-fn",
+										Runtime: "container",
+										ContainerOpts: {
+											Image: "redis:latest",
+										},
+									},
+								},
+							],
+						},
+						status: 200,
+					});
+				}
+				return Promise.resolve({
+					data: {
+						ID: "container-fn-id",
+						Config: {
+							Name: "container-fn",
+							Runtime: "container",
+							ContainerOpts: {
+								Image: "redis:latest",
+								Args: [],
+								Command: "",
+							},
+							Env: {},
+							PortMap: [],
+							Scaling: {
+								AutoStop: false,
+								Min: 1,
+								Max: 1,
+								MaxIdleTime: 300,
+							},
+							Resources: {
+								CPU: 0.1,
+								MemoryMB: 128,
+								MemoryMaxMB: 128,
+							},
+							Timeout: 60,
+						},
+					},
+					status: 200,
+				});
+			});
+			mockSearch.mockResolvedValue({
+				ID: "container-fn-id",
+				Status: "running",
+				Config: {
+					Name: "container-fn",
+					Runtime: "container",
+					ContainerOpts: { Image: "redis:latest" },
+				},
+			});
+
+			await ServerlessCommands.default.execute(["pull"]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("Pulling serverless")
+			);
+		});
+
+		it("should handle pull API error", async () => {
+			mockAxios.mockImplementation((config) => {
+				if (config.url && !config.url.includes("/apps/")) {
+					return Promise.resolve({
+						data: {
+							data: [
+								{
+									ID: "fn-id",
+									Status: "running",
+									Config: { Name: "my-fn", Runtime: "code" },
+								},
+							],
+						},
+						status: 200,
+					});
+				}
+				return Promise.resolve(null);
+			});
+			mockSearch.mockResolvedValue({
+				ID: "fn-id",
+				Status: "running",
+				Config: { Name: "my-fn", Runtime: "code" },
+			});
+
+			await ServerlessCommands.default.execute(["pull"]);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining("Failed to fetch serverless")
+			);
+		});
+	});
+
+	describe("handleStatus comprehensive tests", () => {
+		it("should display status without name (interactive)", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "fn-1",
+							Status: "running",
+							Config: {
+								Name: "fn-1",
+								Runtime: "code",
+								CodeOpts: { Language: "nodejs/20" },
+							},
+							LastBuild: {
+								StatusHistory: [{ Status: "success" }],
+							},
+						},
+					],
+				},
+			});
+			mockSearch.mockResolvedValue({
+				ID: "fn-1",
+				Status: "running",
+				Config: {
+					Name: "fn-1",
+					Runtime: "code",
+					CodeOpts: { Language: "nodejs/20" },
+				},
+				LastBuild: { StatusHistory: [{ Status: "success" }] },
+			});
+
+			await ServerlessCommands.default.execute(["status"]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should handle status with pending build", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "fn-1",
+							Status: "pending",
+							Config: { Name: "pending-fn", Runtime: "code" },
+							LastBuild: {
+								StatusHistory: [{ Status: "pending" }],
+							},
+						},
+					],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"-n",
+				"pending-fn",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should handle status with failed build", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "fn-1",
+							Status: "failed",
+							Config: { Name: "failed-fn", Runtime: "code" },
+							LastBuild: {
+								StatusHistory: [{ Status: "failed" }],
+							},
+						},
+					],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"-n",
+				"failed-fn",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+	});
+
+	describe("handleList comprehensive tests", () => {
+		it("should handle list with git runtime items", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "git-fn",
+							Status: "running",
+							Config: {
+								Name: "git-project",
+								Runtime: "git",
+								CodeOpts: { Language: "python/3" },
+							},
+						},
+					],
+				},
+			});
+			mockSearch.mockResolvedValue({
+				ID: "git-fn",
+				Status: "running",
+				Config: {
+					Name: "git-project",
+					Runtime: "git",
+					CodeOpts: { Language: "python/3" },
+				},
+			});
+
+			await ServerlessCommands.default.execute(["list"]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should handle generic error in list", async () => {
+			mockAxios.mockRejectedValue(new Error("Network error"));
+
+			await ServerlessCommands.default.execute(["list"]);
+
+			// Command should handle error gracefully
+			expect(mockConsoleError).toHaveBeenCalled();
 		});
 	});
 });
