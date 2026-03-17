@@ -116,7 +116,7 @@ const publishServerless = async (apiUrl, token, session, payload) => {
 	try {
 		const axiosOptions = {
 			method: "post",
-			url: `https://asia-south1.api.boltic.io/service/panel/serverless/v1.0/apps`,
+			url: `${apiUrl}/service/panel/serverless/v1.0/apps`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,
@@ -154,7 +154,7 @@ const updateServerless = async (
 	try {
 		const axiosOptions = {
 			method: "put",
-			url: `https://asia-south1.api.boltic.io/service/panel/serverless/v1.0/apps/${serverlessId}`,
+			url: `${apiUrl}/service/panel/serverless/v1.0/apps/${serverlessId}`,
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${token}`,

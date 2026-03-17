@@ -7463,7 +7463,7 @@ serverlessConfig:
 		});
 	});
 
-	describe("Git type create with boltic.yaml write failure", () => {
+	describe("Git type create with project setup failure", () => {
 		beforeEach(() => {
 			mockGetCurrentEnv.mockResolvedValue({
 				apiUrl: "https://api.test.com",
@@ -7477,7 +7477,7 @@ serverlessConfig:
 			jest.restoreAllMocks();
 		});
 
-		it("should handle boltic.yaml write failure", async () => {
+		it("should handle project setup failure", async () => {
 			jest.spyOn(fs, "existsSync").mockReturnValue(false);
 			jest.spyOn(fs, "mkdirSync").mockImplementation(() => {});
 			jest.spyOn(fs, "writeFileSync").mockImplementation((p) => {
@@ -7505,7 +7505,7 @@ serverlessConfig:
 			await ServerlessCommands.default.execute(["create"]);
 
 			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining("Failed to create boltic.yaml")
+				expect.stringContaining("Failed to create project directory")
 			);
 		});
 
