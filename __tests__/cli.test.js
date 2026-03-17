@@ -76,7 +76,7 @@ describe("CLI Module", () => {
 		it("should show help when no command is provided", async () => {
 			await cli.execute(["node", "cli.js"]);
 			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringMatching(/Usage: boltic \[command\]/)
+				expect.stringContaining("Usage: boltic [command]")
 			);
 		});
 
@@ -147,7 +147,7 @@ describe("CLI Module", () => {
 		it("should handle help command", async () => {
 			await cli.execute(["node", "cli.js", "help"]);
 			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringMatching(/Usage: boltic \[command\]/)
+				expect.stringContaining("Usage: boltic [command]")
 			);
 		});
 
@@ -194,7 +194,7 @@ describe("CLI Module", () => {
 
 			await cli.execute(["node", "cli.js", "help"]);
 			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringMatching(/Usage: boltic \[command\]/)
+				expect.stringContaining("Usage: boltic [command]")
 			);
 		});
 	});
