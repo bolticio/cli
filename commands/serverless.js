@@ -819,6 +819,15 @@ async function handlePublish(args = []) {
 		const languageBase = parseLanguageFromConfig(language);
 		const runtime = serverlessConfig?.Runtime || "code";
 		let code = null;
+		if (runtime === "git") {
+			console.log(
+				chalk.red("\n📄 Git type serverless does not support publish")
+			);
+			console.log(
+				chalk.yellow("Please publish using git push origin main")
+			);
+			return;
+		}
 
 		if (runtime === "code") {
 			code = readHandlerFile(directory, languageBase, config);
