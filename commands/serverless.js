@@ -381,7 +381,7 @@ async function handleCodeTypeCreate(name, language, version, targetDir) {
 }
 
 /**
- * Handle git type serverless creation - creates folder with boltic.yaml and calls create API
+ * Handle git type serverless creation - creates serverless on server and clones the repo
  */
 async function handleGitTypeCreate(name, language, version, targetDir) {
 	console.log(chalk.cyan("\n📁 Creating git-based serverless project..."));
@@ -442,7 +442,6 @@ async function handleGitTypeCreate(name, language, version, targetDir) {
 	}
 
 	// Extract serverless ID and git info from response
-	// Response structure: { ID, Links: { Git: { Repository: { SshURL, HtmlURL, CloneURL, ... } } } }
 	const serverlessId = response.ID || response.data?.ID || response._id;
 	const gitRepo =
 		response.Links?.Git?.Repository ||
@@ -451,8 +450,41 @@ async function handleGitTypeCreate(name, language, version, targetDir) {
 	const gitHttpUrl = gitRepo?.HtmlURL || "";
 	const gitCloneUrl = gitRepo?.CloneURL || "";
 
-	// Create boltic.yaml with serverlessId inside serverlessConfig
-	const bolticYamlContent = `app: "${name}"
+	// Remove the empty directory created earlier - we'll clone into it
+	try {
+		fs.rmSync(targetDir, { recursive: true, force: true });
+	} catch {
+		// Ignore cleanup errors
+	}
+
+	// Clone the repo from server (which has the server-generated boltic.yaml)
+	let cloneSuccess = false;
+	if (gitSshUrl) {
+		console.log(chalk.cyan("\n📥 Cloning git repository..."));
+		try {
+			// Clone the repo
+			execSync(`git clone ${gitSshUrl} "${targetDir}"`, {
+				stdio: "pipe",
+				timeout: 30000,
+			});
+			cloneSuccess = true;
+			console.log(chalk.green("✅ Repository cloned successfully!"));
+		} catch (err) {
+			console.log(
+				chalk.yellow(
+					"⚠️  Could not clone repository. You may not have SSH access yet."
+				)
+			);
+			cloneSuccess = false;
+		}
+	}
+
+	// If clone failed, create directory with minimal setup
+	if (!cloneSuccess) {
+		try {
+			fs.mkdirSync(targetDir, { recursive: true });
+			// Create a minimal boltic.yaml as fallback
+			const bolticYamlContent = `app: "${name}"
 region: "asia-south1"
 handler: "${HANDLER_MAPPING[language]}"
 language: "${language}/${version}"
@@ -460,19 +492,7 @@ language: "${language}/${version}"
 serverlessConfig:
   serverlessId: "${serverlessId}"
   Name: "${name}"
-  Description: ""
   Runtime: "git"
-  # Environment variables for your serverless function
-  # To add env variables, replace {} with key-value pairs like:
-  # Env:
-  #   API_KEY: "your-api-key"
-  #TO add port map, replace {} with port map like:
-  # PortMap:
-  #   - Name: "port"
-  #     Port: "8080"
-  #     Protocol: "http"/"https"
-  Env: {}
-  PortMap: {}
   Scaling:
     AutoStop: false
     Min: 1
@@ -483,61 +503,23 @@ serverlessConfig:
     MemoryMB: 128
     MemoryMaxMB: 128
   Timeout: 60
-  Validations: null
-
-build:
-  builtin: dockerfile
-  ignorefile: .gitignore
 `;
-
-	try {
-		fs.writeFileSync(
-			path.join(targetDir, "boltic.yaml"),
-			bolticYamlContent
-		);
-	} catch (err) {
-		console.error(chalk.red(`\n❌ Failed to create boltic.yaml`));
-		console.error(chalk.red(`Error: ${err.message}`));
-		return;
-	}
-
-	// Check if user has git access by trying ls-remote
-	let hasGitAccess = false;
-	if (gitSshUrl) {
-		console.log(chalk.cyan("\n🔍 Checking git repository access..."));
-		try {
-			// Initialize git repo
-			execSync(`git init`, { cwd: targetDir, stdio: "pipe" });
-			execSync(`git remote add origin ${gitSshUrl}`, {
-				cwd: targetDir,
-				stdio: "pipe",
-			});
-			// Try ls-remote to check SSH access
-			execSync(`git ls-remote ${gitSshUrl}`, {
-				cwd: targetDir,
-				stdio: "pipe",
-				timeout: 15000,
-			});
-			hasGitAccess = true;
-		} catch (err) {
-			hasGitAccess = false;
-		}
-	}
-
-	// If user has access, create main branch
-	if (hasGitAccess) {
-		try {
-			console.log(chalk.cyan("🔧 Setting up git branch..."));
-			// Create main branch
-			execSync(`git checkout -b main`, { cwd: targetDir, stdio: "pipe" });
-			console.log(chalk.green("✓ Created main branch"));
-		} catch (err) {
-			// Ignore errors in branch setup, user can do it manually
-			console.log(
-				chalk.yellow(
-					"⚠️  Could not auto-setup git branch. You can set it up manually."
-				)
+			fs.writeFileSync(
+				path.join(targetDir, "boltic.yaml"),
+				bolticYamlContent
 			);
+			// Initialize git repo
+			if (gitSshUrl) {
+				execSync(`git init`, { cwd: targetDir, stdio: "pipe" });
+				execSync(`git remote add origin ${gitSshUrl}`, {
+					cwd: targetDir,
+					stdio: "pipe",
+				});
+			}
+		} catch (err) {
+			console.error(chalk.red(`\n❌ Failed to create project directory`));
+			console.error(chalk.red(`Error: ${err.message}`));
+			return;
 		}
 	}
 
@@ -573,11 +555,10 @@ build:
 		}
 		console.log();
 
-		if (hasGitAccess) {
+		if (cloneSuccess) {
 			console.log(
-				chalk.green("✅ You have access to the git repository!")
+				chalk.green("✅ Repository cloned with server configuration!")
 			);
-			console.log(chalk.green("✅ Main branch created!"));
 			console.log();
 			console.log(
 				chalk.yellow("📝 Next steps - Add your code and push:")
@@ -585,11 +566,13 @@ build:
 			console.log(chalk.dim("   1. Add your server code to this folder"));
 			console.log(chalk.dim("   2. Commit and push:"));
 			console.log(chalk.white(`      git add .`));
-			console.log(chalk.white(`      git commit -m "Initial commit"`));
-			console.log(chalk.white(`      git push -u origin main`));
+			console.log(
+				chalk.white(`      git commit -m "Add application code"`)
+			);
+			console.log(chalk.white(`      git push origin main`));
 		} else {
 			console.log(
-				chalk.red("❌ You don't have access to this git repository.")
+				chalk.yellow("⚠️  Could not clone repository automatically.")
 			);
 			console.log(
 				chalk.yellow(
@@ -598,14 +581,20 @@ build:
 			);
 			console.log();
 			console.log(
-				chalk.yellow("📝 Once you have access, push your code:")
+				chalk.yellow("📝 Once you have access, sync with remote:")
 			);
-			console.log(chalk.dim("   1. Add your code to this folder"));
-			console.log(chalk.dim("   2. Run:"));
-			console.log(chalk.white(`      git checkout -b main`));
+			console.log(chalk.dim("   1. Pull the server config first:"));
+			console.log(
+				chalk.white(
+					`      git pull origin main --allow-unrelated-histories`
+				)
+			);
+			console.log(chalk.dim("   2. Add your code and push:"));
 			console.log(chalk.white(`      git add .`));
-			console.log(chalk.white(`      git commit -m "Initial commit"`));
-			console.log(chalk.white(`      git push -u origin main`));
+			console.log(
+				chalk.white(`      git commit -m "Add application code"`)
+			);
+			console.log(chalk.white(`      git push origin main`));
 		}
 	} else {
 		console.log();
