@@ -22,13 +22,20 @@ const commands = {
 const execute = async (args) => {
 	const subCommand = args[0];
 
-	if (!subCommand) {
+	// Handle help flags
+	if (
+		!subCommand ||
+		subCommand === "--help" ||
+		subCommand === "-h" ||
+		args.includes("--help") ||
+		args.includes("-h")
+	) {
 		showHelp();
 		return;
 	}
 
 	if (!commands[subCommand]) {
-		console.log(chalk.red("Unknown or missing mcp sub-command.\n"));
+		console.log(chalk.red(`Unknown mcp command: "${subCommand}"\n`));
 		showHelp();
 		return;
 	}

@@ -57,7 +57,7 @@ describe("Environment Commands", () => {
 			await EnvironmentCommands.execute(["unknown"]);
 			expect(mockConsoleLog).toHaveBeenCalledWith(
 				expect.stringContaining(
-					"Unknown or missing environment sub-command"
+					'Unknown environment command: "unknown"'
 				)
 			);
 		});

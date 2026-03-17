@@ -84,8 +84,16 @@ jest.mock("../helper/error.js", () => ({
 }));
 
 // Mock helper/verbose
+const mockLogApiRequest = jest.fn();
+const mockLogApiResponse = jest.fn();
+const mockSetVerboseMode = jest.fn();
+const mockGetVerboseMode = jest.fn();
 jest.mock("../helper/verbose.js", () => ({
 	logApi: mockLogApi,
+	logApiRequest: mockLogApiRequest,
+	logApiResponse: mockLogApiResponse,
+	setVerboseMode: mockSetVerboseMode,
+	getVerboseMode: mockGetVerboseMode,
 }));
 
 // Mock axios
@@ -2152,10 +2160,13 @@ describe("Serverless API", () => {
 					}),
 				})
 			);
-			expect(mockLogApi).toHaveBeenCalledWith(
+			expect(mockLogApiRequest).toHaveBeenCalledWith(
 				"get",
-				expect.any(String),
-				200
+				expect.any(String)
+			);
+			expect(mockLogApiResponse).toHaveBeenCalledWith(
+				200,
+				expect.any(Object)
 			);
 			expect(result).toEqual(mockResponse.data.data);
 		});
@@ -2411,6 +2422,228 @@ describe("Serverless API", () => {
 			expect(result).toBeNull();
 		});
 	});
+
+	describe("getServerlessBuilds", () => {
+		const mockCredentials = {
+			apiUrl: "https://api.test.com",
+			token: "test-token",
+			accountId: "test-account",
+			session: "test-session",
+		};
+
+		it("should handle missing credentials", async () => {
+			await serverlessAPI.getServerlessBuilds(
+				"https://api.test.com",
+				null,
+				null,
+				null,
+				"serverless-123"
+			);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Authentication credentials are required"
+				)
+			);
+			expect(mockExit).toHaveBeenCalledWith(1);
+		});
+
+		it("should successfully fetch builds", async () => {
+			const mockResponse = {
+				data: {
+					data: [
+						{ ID: "build-1", Version: 1, Status: "success" },
+						{ ID: "build-2", Version: 2, Status: "pending" },
+					],
+				},
+				status: 200,
+			};
+
+			mockAxios.mockResolvedValue(mockResponse);
+
+			const result = await serverlessAPI.getServerlessBuilds(
+				mockCredentials.apiUrl,
+				mockCredentials.token,
+				mockCredentials.accountId,
+				mockCredentials.session,
+				"serverless-123"
+			);
+
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "get",
+					url: expect.stringContaining(
+						"/serverless/v1.0/apps/serverless-123/builds"
+					),
+				})
+			);
+			expect(result).toEqual(mockResponse.data);
+		});
+
+		it("should handle API errors", async () => {
+			const error = new Error("Builds fetch failed");
+			mockAxios.mockRejectedValue(error);
+
+			await serverlessAPI.getServerlessBuilds(
+				mockCredentials.apiUrl,
+				mockCredentials.token,
+				mockCredentials.accountId,
+				mockCredentials.session,
+				"serverless-123"
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
+	});
+
+	describe("getServerlessLogs", () => {
+		const mockCredentials = {
+			apiUrl: "https://api.test.com",
+			token: "test-token",
+			accountId: "test-account",
+			session: "test-session",
+		};
+
+		it("should handle missing credentials", async () => {
+			await serverlessAPI.getServerlessLogs(
+				"https://api.test.com",
+				null,
+				null,
+				null,
+				"serverless-123"
+			);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Authentication credentials are required"
+				)
+			);
+			expect(mockExit).toHaveBeenCalledWith(1);
+		});
+
+		it("should successfully fetch logs", async () => {
+			const mockResponse = {
+				data: {
+					data: [
+						{
+							Timestamp: 1742146231,
+							Severity: "INFO",
+							Log: '{"msg":"test log"}',
+						},
+					],
+				},
+				status: 200,
+			};
+
+			mockAxios.mockResolvedValue(mockResponse);
+
+			const result = await serverlessAPI.getServerlessLogs(
+				mockCredentials.apiUrl,
+				mockCredentials.token,
+				mockCredentials.accountId,
+				mockCredentials.session,
+				"serverless-123"
+			);
+
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "get",
+					url: expect.stringContaining(
+						"/serverless/v1.0/apps/serverless-123/logs"
+					),
+				})
+			);
+			expect(result).toEqual(mockResponse.data);
+		});
+
+		it("should handle API errors", async () => {
+			const error = new Error("Logs fetch failed");
+			mockAxios.mockRejectedValue(error);
+
+			await serverlessAPI.getServerlessLogs(
+				mockCredentials.apiUrl,
+				mockCredentials.token,
+				mockCredentials.accountId,
+				mockCredentials.session,
+				"serverless-123"
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
+	});
+
+	describe("getBuildLogs", () => {
+		const mockCredentials = {
+			apiUrl: "https://api.test.com",
+			token: "test-token",
+			accountId: "test-account",
+			session: "test-session",
+		};
+
+		it("should handle missing credentials", async () => {
+			await serverlessAPI.getBuildLogs(
+				"https://api.test.com",
+				null,
+				null,
+				null,
+				"serverless-123",
+				"build-456"
+			);
+
+			expect(mockConsoleError).toHaveBeenCalledWith(
+				expect.stringContaining(
+					"Authentication credentials are required"
+				)
+			);
+			expect(mockExit).toHaveBeenCalledWith(1);
+		});
+
+		it("should successfully fetch build logs", async () => {
+			const mockResponse = {
+				data: {
+					data: [{ Log: "[32mBuilding...[0m\n" }],
+				},
+				status: 200,
+			};
+
+			mockAxios.mockResolvedValue(mockResponse);
+
+			const result = await serverlessAPI.getBuildLogs(
+				mockCredentials.apiUrl,
+				mockCredentials.token,
+				mockCredentials.accountId,
+				mockCredentials.session,
+				"serverless-123",
+				"build-456"
+			);
+
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					method: "get",
+					url: expect.stringContaining(
+						"/serverless/v1.0/apps/serverless-123/builds/build-456/logs"
+					),
+				})
+			);
+			expect(result).toEqual(mockResponse.data);
+		});
+
+		it("should handle API errors", async () => {
+			const error = new Error("Build logs fetch failed");
+			mockAxios.mockRejectedValue(error);
+
+			await serverlessAPI.getBuildLogs(
+				mockCredentials.apiUrl,
+				mockCredentials.token,
+				mockCredentials.accountId,
+				mockCredentials.session,
+				"serverless-123",
+				"build-456"
+			);
+
+			expect(mockHandleError).toHaveBeenCalledWith(error);
+		});
+	});
 });
 
 // ============================================================================
@@ -2495,9 +2728,7 @@ describe("Serverless Commands", () => {
 			await ServerlessCommands.default.execute(["unknown"]);
 
 			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringContaining(
-					"Unknown or missing serverless sub-command"
-				)
+				expect.stringContaining("Unknown serverless command")
 			);
 		});
 
@@ -2700,8 +2931,9 @@ describe("Serverless Commands", () => {
 		it("should display status check message", async () => {
 			await ServerlessCommands.default.execute(["status"]);
 
+			// When no name is provided, it shows the fetching message before interactive selection
 			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringContaining("status")
+				expect.stringContaining("Fetching serverless")
 			);
 		});
 
@@ -9182,6 +9414,379 @@ serverlessConfig:
 			await ServerlessCommands.default.execute(["test"]);
 
 			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+	});
+
+	describe("handleStatus command tests", () => {
+		beforeEach(() => {
+			jest.clearAllMocks();
+			mockGetCurrentEnv.mockResolvedValue({
+				apiUrl: "https://api.test.com",
+				token: "test-token",
+				accountId: "test-account",
+				session: "test-session",
+			});
+		});
+
+		it("should handle status with verbose flag", async () => {
+			mockAxios.mockResolvedValue({
+				data: {
+					data: [
+						{
+							ID: "version-123",
+							ParentID: "parent-123",
+							Status: "running",
+							Config: { Name: "test-fn", Runtime: "code" },
+						},
+					],
+				},
+			});
+
+			// Mock pullServerless response
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "version-123",
+							ParentID: "parent-123",
+							Status: "running",
+							Config: { Name: "test-fn", Runtime: "code" },
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "parent-123",
+					Status: "running",
+					Config: { Name: "test-fn", Runtime: "code" },
+					AppDomain: [{ DomainName: "test", BaseUrl: "test.com" }],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"test-fn",
+				"--verbose",
+			]);
+
+			expect(mockSetVerboseMode).toHaveBeenCalledWith(true);
+		});
+
+		it("should handle status with timeout flag", async () => {
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "version-123",
+							ParentID: "parent-123",
+							Status: "running",
+							Config: { Name: "test-fn", Runtime: "code" },
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "parent-123",
+					Status: "running",
+					Config: { Name: "test-fn", Runtime: "code" },
+					AppDomain: [{ DomainName: "test", BaseUrl: "test.com" }],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"test-fn",
+				"--timeout",
+				"60",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should prefer ParentID over ID when fetching status", async () => {
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "version-456",
+							ParentID: "parent-456",
+							Status: "running",
+							Config: { Name: "parent-test", Runtime: "code" },
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "parent-456",
+					Status: "running",
+					Config: { Name: "parent-test", Runtime: "code" },
+					AppDomain: [],
+				},
+			});
+
+			await ServerlessCommands.default.execute(["status", "parent-test"]);
+
+			// Verify second call uses ParentID
+			expect(mockAxios).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					url: expect.stringContaining("parent-456"),
+				})
+			);
+		});
+
+		it("should handle status with watch mode reaching terminal state", async () => {
+			// First call to listAllServerless
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "version-789",
+							ParentID: "parent-789",
+							Status: "building",
+							Config: { Name: "watch-test", Runtime: "code" },
+						},
+					],
+				},
+			});
+			// Poll returns running (terminal state)
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "parent-789",
+					Status: "running",
+					Config: { Name: "watch-test", Runtime: "code" },
+					AppDomain: [{ DomainName: "watch", BaseUrl: "test.com" }],
+					RegionID: "asia-south1",
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"watch-test",
+				"--watch",
+			]);
+
+			// Verify watch mode was entered and status was displayed
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("Watching status")
+			);
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("Status: running")
+			);
+		});
+
+		it("should handle status with short flags", async () => {
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "v-short",
+							ParentID: "p-short",
+							Status: "running",
+							Config: { Name: "short-test", Runtime: "code" },
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "p-short",
+					Status: "running",
+					Config: { Name: "short-test", Runtime: "code" },
+					AppDomain: [],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"-n",
+				"short-test",
+				"-v",
+				"-t",
+				"30",
+			]);
+
+			expect(mockSetVerboseMode).toHaveBeenCalledWith(true);
+		});
+
+		it("should fallback to ID when ParentID is not available", async () => {
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "only-id-123",
+							Status: "running",
+							Config: { Name: "id-only-test", Runtime: "code" },
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "only-id-123",
+					Status: "running",
+					Config: { Name: "id-only-test", Runtime: "code" },
+					AppDomain: [],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"id-only-test",
+			]);
+
+			expect(mockAxios).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					url: expect.stringContaining("only-id-123"),
+				})
+			);
+		});
+
+		it("should handle status command with failed state", async () => {
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "v-fail",
+							ParentID: "p-fail",
+							Status: "failed",
+							Config: { Name: "fail-test", Runtime: "code" },
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "p-fail",
+					Status: "failed",
+					Config: { Name: "fail-test", Runtime: "code" },
+					AppDomain: [],
+				},
+			});
+
+			await ServerlessCommands.default.execute(["status", "fail-test"]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should handle status command with degraded state", async () => {
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "v-deg",
+							ParentID: "p-deg",
+							Status: "degraded",
+							Config: { Name: "degraded-test", Runtime: "code" },
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "p-deg",
+					Status: "degraded",
+					Config: { Name: "degraded-test", Runtime: "code" },
+					AppDomain: [],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"degraded-test",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should handle status command with suspended state", async () => {
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "v-sus",
+							ParentID: "p-sus",
+							Status: "suspended",
+							Config: { Name: "suspended-test", Runtime: "code" },
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "p-sus",
+					Status: "suspended",
+					Config: { Name: "suspended-test", Runtime: "code" },
+					AppDomain: [],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"suspended-test",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalled();
+		});
+
+		it("should display container details in status", async () => {
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					data: [
+						{
+							ID: "v-cont",
+							ParentID: "p-cont",
+							Status: "running",
+							Config: {
+								Name: "container-status",
+								Runtime: "container",
+								ContainerOpts: { Image: "nginx:latest" },
+							},
+						},
+					],
+				},
+			});
+			mockAxios.mockResolvedValueOnce({
+				data: {
+					ID: "p-cont",
+					Status: "running",
+					Config: {
+						Name: "container-status",
+						Runtime: "container",
+						ContainerOpts: { Image: "nginx:latest" },
+						Resources: { CPU: 0.5, MemoryMB: 256 },
+						Scaling: { Min: 1, Max: 3 },
+					},
+					RegionID: "asia-south1",
+					CreatedAt: "2024-01-01T00:00:00Z",
+					UpdatedAt: "2024-01-02T00:00:00Z",
+					AppDomain: [
+						{ DomainName: "container", BaseUrl: "test.com" },
+					],
+				},
+			});
+
+			await ServerlessCommands.default.execute([
+				"status",
+				"container-status",
+			]);
+
+			expect(mockConsoleLog).toHaveBeenCalledWith(
+				expect.stringContaining("container")
+			);
+		});
+	});
+
+	describe("Verbose helper functions", () => {
+		it("should export all verbose functions", async () => {
+			const verboseModule = await import("../helper/verbose.js");
+			expect(verboseModule.setVerboseMode).toBeDefined();
+			expect(verboseModule.getVerboseMode).toBeDefined();
+			expect(verboseModule.logApi).toBeDefined();
+			expect(verboseModule.logApiRequest).toBeDefined();
+			expect(verboseModule.logApiResponse).toBeDefined();
 		});
 	});
 });

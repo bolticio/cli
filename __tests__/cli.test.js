@@ -91,10 +91,10 @@ describe("CLI Module", () => {
 			expect(AuthCommands.default.handleLogin).toHaveBeenCalled();
 		});
 
-		it("should handle login command with PAT flag", async () => {
+		it("should handle login command with token flag", async () => {
 			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([]);
 
-			await cli.execute(["node", "cli.js", "login", "--pat"]);
+			await cli.execute(["node", "cli.js", "login", "--token"]);
 
 			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalled();
 			expect(AuthCommands.default.handleLogin).not.toHaveBeenCalled();

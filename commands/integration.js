@@ -456,13 +456,22 @@ async function handlePublish(args) {
 const execute = async (args) => {
 	const subCommand = args[0];
 
-	if (!subCommand) {
+	// Handle help flags
+	if (
+		!subCommand ||
+		subCommand === "--help" ||
+		subCommand === "-h" ||
+		args.includes("--help") ||
+		args.includes("-h")
+	) {
 		showHelp();
 		return;
 	}
 
 	if (!commands[subCommand]) {
-		console.log(chalk.red("Unknown or missing integration sub-command.\n"));
+		console.log(
+			chalk.red(`Unknown integration command: "${subCommand}"\n`)
+		);
 		showHelp();
 		return;
 	}
