@@ -1,7 +1,7 @@
 {
 	"name": "@boltic/cli",
-	"version": "1.0.39",
-	"description": "A powerful CLI tool for managing Boltic Workflow integrations - create, sync, test, and publish integrations with ease",
+	"version": "1.0.40",
+	"description": "Professional CLI for interacting with the Boltic platform — create, manage, and publish integrations, serverless functions, workflows, MCPs, and more with enterprise-grade features and a seamless developer experience",
 	"main": "index.js",
 	"bin": {
 		"boltic": "index.js"
@@ -99,12 +99,15 @@
 	},
 	"dependencies": {
 		"@inquirer/prompts": "^7.8.0",
+		"@iarna/toml": "^2.2.5",
 		"axios": "^1.11.0",
 		"chalk": "^5.5.0",
 		"js-yaml": "^4.1.0",
 		"keytar": "^7.9.0",
 		"lodash.isempty": "^4.4.0",
 		"open": "^10.2.0",
+		"ora": "^9.0.0",
+		"unique-names-generator": "^4.7.1",
 		"uuid": "^11.1.0"
 	},
 	"devDependencies": {
