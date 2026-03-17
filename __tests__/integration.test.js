@@ -64,7 +64,7 @@ describe("Integration Commands", () => {
 			await IntegrationCommands.execute(["unknown"]);
 			expect(mockConsoleLog).toHaveBeenCalledWith(
 				expect.stringContaining(
-					"Unknown or missing integration sub-command"
+					'Unknown integration command: "unknown"'
 				)
 			);
 		});

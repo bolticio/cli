@@ -64,7 +64,7 @@ describe("MCP Commands", () => {
 		);
 		await Mcp.execute(["unknown"]);
 		expect(mockConsoleLog).toHaveBeenCalledWith(
-			expect.stringContaining("Unknown or missing mcp sub-command")
+			expect.stringContaining('Unknown mcp command: "unknown"')
 		);
 	});
 

@@ -112,7 +112,11 @@ Boltic CLI uses a secure OAuth 2.0 flow with browser-based authentication for en
 ### Initial Login
 
 ```bash
+# Interactive browser login
 boltic login
+
+# Login with Permanent Access Token (PAT)
+boltic login --token YOUR_PAT_TOKEN --account-id YOUR_ACCOUNT_ID
 ```
 
 The authentication process follows these steps:
@@ -401,6 +405,48 @@ boltic serverless status
 
 # Check status by name
 boltic serverless status --name my-function
+
+# Watch status until running/failed/degraded
+boltic serverless status --name my-function --watch
+```
+
+### Viewing Builds
+
+```bash
+# List all builds for a serverless function
+boltic serverless builds
+
+# List builds by name
+boltic serverless builds --name my-function
+```
+
+### Viewing Logs
+
+```bash
+# View runtime logs (interactive selection)
+boltic serverless logs
+
+# View logs by name
+boltic serverless logs --name my-function
+
+# Follow logs in real-time
+boltic serverless logs --name my-function --follow
+
+# Limit number of lines
+boltic serverless logs --name my-function --lines 50
+```
+
+### Viewing Build Logs
+
+```bash
+# View build logs (interactive selection)
+boltic serverless build logs
+
+# View build logs by name (will prompt for build selection)
+boltic serverless build logs --name my-function
+
+# View specific build logs
+boltic serverless build logs --name my-function --build BUILD_ID
 ```
 
 ---
@@ -409,12 +455,12 @@ boltic serverless status --name my-function
 
 ### Core Commands
 
-| Command          | Description                       | Options |
-| ---------------- | --------------------------------- | ------- |
-| `boltic login`   | Authenticate with Boltic platform |         |
-| `boltic logout`  | Clear stored credentials          |         |
-| `boltic version` | Display CLI version               |         |
-| `boltic help`    | Show comprehensive help           |         |
+| Command          | Description                       | Options                                  |
+| ---------------- | --------------------------------- | ---------------------------------------- |
+| `boltic login`   | Authenticate with Boltic platform | `--token` `--account-id`                 |
+| `boltic logout`  | Clear stored credentials          |                                          |
+| `boltic version` | Display CLI version               |                                          |
+| `boltic help`    | Show comprehensive help           |                                          |
 
 ### Integration Commands
 
@@ -437,15 +483,18 @@ boltic serverless status --name my-function
 
 ### Serverless Commands
 
-| Command                      | Description                          | Options                                              |
-| ---------------------------- | ------------------------------------ | ---------------------------------------------------- |
-| `boltic serverless create`   | Create a new serverless function     | `--type, -t` `--name, -n` `--language, -l` `--directory, -d` |
-| `boltic serverless test`     | Test serverless function locally     | `--port, -p` `--language, -l` `--directory, -d`      |
-| `boltic serverless publish`  | Publish/deploy serverless function   | `--directory, -d`                                    |
-| `boltic serverless pull`     | Pull existing serverless function    | `--path`                                             |
-| `boltic serverless list`     | List all serverless functions        |                                                      |
-| `boltic serverless status`   | Show status of a serverless function | `--name, -n`                                         |
-| `boltic serverless help`     | Show help for serverless commands    |                                                      |
+| Command                         | Description                          | Options                                              |
+| ------------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| `boltic serverless create`      | Create a new serverless function     | `--type, -t` `--name, -n` `--language, -l` `--directory, -d` |
+| `boltic serverless test`        | Test serverless function locally     | `--port, -p` `--language, -l` `--directory, -d`      |
+| `boltic serverless publish`     | Publish/deploy serverless function   | `--directory, -d`                                    |
+| `boltic serverless pull`        | Pull existing serverless function    | `--path`                                             |
+| `boltic serverless list`        | List all serverless functions        |                                                      |
+| `boltic serverless status`      | Show status of a serverless function | `--name, -n` `--watch, -w`                           |
+| `boltic serverless builds`      | List builds for a serverless         | `--name, -n`                                         |
+| `boltic serverless logs`        | Show runtime logs                    | `--name, -n` `--follow, -f` `--lines, -l`            |
+| `boltic serverless build logs`  | Show logs for a specific build       | `--name, -n` `--build, -b`                           |
+| `boltic serverless help`        | Show help for serverless commands    |                                                      |
 
 ### Help and Documentation
 

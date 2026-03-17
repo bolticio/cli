@@ -38,7 +38,11 @@ import {
 	pullServerless,
 	publishServerless,
 	updateServerless,
+	getServerlessBuilds,
+	getServerlessLogs,
+	getBuildLogs,
 } from "../api/serverless.js";
+import { setVerboseMode } from "../helper/verbose.js";
 
 // Define commands and their descriptions
 const commands = {
@@ -58,10 +62,6 @@ const commands = {
 		description: "Test a serverless function locally",
 		action: handleTest,
 	},
-	help: {
-		description: "Show help for serverless commands",
-		action: showHelp,
-	},
 	list: {
 		description: "List all serverless functions",
 		action: handleList,
@@ -69,6 +69,22 @@ const commands = {
 	status: {
 		description: "Show status of a serverless function",
 		action: handleStatus,
+	},
+	builds: {
+		description: "List builds for a serverless function",
+		action: handleBuilds,
+	},
+	logs: {
+		description: "Show logs for a serverless function",
+		action: handleLogs,
+	},
+	"build logs": {
+		description: "Show logs for a specific build",
+		action: handleBuildLogs,
+	},
+	help: {
+		description: "Show help for serverless commands",
+		action: showHelp,
 	},
 };
 
@@ -1540,131 +1556,183 @@ async function handlePull(args) {
 function showHelp() {
 	console.log(chalk.cyan("\nServerless Commands:\n"));
 	Object.entries(commands).forEach(([cmd, details]) => {
-		console.log(chalk.bold(`  ${cmd}`) + ` - ${details.description}`);
+		console.log(chalk.bold(`  ${cmd.padEnd(12)}`) + details.description);
 	});
 
-	console.log(chalk.cyan("\nCreate Command Options:\n"));
+	console.log(chalk.cyan("\nGlobal Options:\n"));
 	console.log(
-		chalk.bold("  --type, -t") +
-			chalk.dim("           ") +
-			"Serverless type: blueprint, git, or container (prompts if not provided)"
-	);
-	console.log(
-		chalk.bold("  --name, -n") +
-			chalk.dim("           ") +
-			"Name of the serverless function (required, prompts if not provided)"
-	);
-	console.log(
-		chalk.bold("  --language, -l") +
-			chalk.dim("       ") +
-			"Programming language: nodejs, python, golang, java (prompts if not provided)"
-	);
-	console.log(
-		chalk.bold("  --directory, -d") +
-			chalk.dim("      ") +
-			"Directory where to create the project (default: current directory)"
+		chalk.bold("  --help, -h".padEnd(20)) + "Show help for a command"
 	);
 
-	console.log(chalk.cyan("\nTest Command Options:\n"));
+	console.log(chalk.cyan("\nCreate Options:\n"));
 	console.log(
-		chalk.bold("  --port, -p") +
-			chalk.dim("           ") +
+		chalk.bold("  --type, -t".padEnd(20)) +
+			"Serverless type: blueprint, git, or container"
+	);
+	console.log(
+		chalk.bold("  --name, -n".padEnd(20)) +
+			"Name of the serverless function"
+	);
+	console.log(
+		chalk.bold("  --language, -l".padEnd(20)) +
+			"Programming language: nodejs, python, golang, java"
+	);
+	console.log(
+		chalk.bold("  --directory, -d".padEnd(20)) +
+			"Directory for the project (default: current)"
+	);
+
+	console.log(chalk.cyan("\nTest Options:\n"));
+	console.log(
+		chalk.bold("  --port, -p".padEnd(20)) +
 			"Port to run the server on (default: 8080)"
 	);
 	console.log(
-		chalk.bold("  --language, -l") +
-			chalk.dim("       ") +
-			"Language (nodejs, python, golang, java) - auto-detected if not specified"
+		chalk.bold("  --language, -l".padEnd(20)) +
+			"Language (auto-detected if not specified)"
 	);
 	console.log(
-		chalk.bold("  --directory, -d") +
-			chalk.dim("      ") +
-			"Base directory of the project (default: current directory)"
+		chalk.bold("  --directory, -d".padEnd(20)) +
+			"Base directory of the project"
 	);
 
-	console.log(chalk.cyan("\nPublish Command Options:\n"));
+	console.log(chalk.cyan("\nPublish Options:\n"));
 	console.log(
-		chalk.bold("  --directory, -d") +
-			chalk.dim("      ") +
-			"Directory of the serverless project (default: current directory)"
+		chalk.bold("  --directory, -d".padEnd(20)) +
+			"Directory of the serverless project"
 	);
 
-	console.log(chalk.cyan("\nStatus Command Options:\n"));
+	console.log(chalk.cyan("\nStatus Options:\n"));
 	console.log(
-		chalk.bold("  --name, -n") +
-			chalk.dim("           ") +
-			"Name of the serverless function (prompts if not provided)"
+		chalk.bold("  --name, -n".padEnd(20)) +
+			"Name of the serverless function"
+	);
+	console.log(
+		chalk.bold("  --watch, -w".padEnd(20)) +
+			"Poll until status is running, failed, or degraded"
 	);
 
-	console.log(chalk.cyan("\nCreate Examples:\n"));
+	console.log(chalk.cyan("\nBuilds Options:\n"));
 	console.log(
-		chalk.dim(
-			"  # Interactive mode (will prompt for type, name, and language)"
-		)
-	);
-	console.log("  boltic serverless create\n");
-	console.log(chalk.dim("  # Create blueprint serverless"));
-	console.log(
-		"  boltic serverless create --type blueprint --name my-api --language nodejs\n"
-	);
-	console.log(
-		chalk.dim(
-			"  # Create git-based serverless (add your code, then publish)"
-		)
-	);
-	console.log(
-		"  boltic serverless create --type git --name my-git-func --language python\n"
-	);
-	console.log(chalk.dim("  # Create container-based serverless"));
-	console.log(
-		"  boltic serverless create --type container --name my-container --language golang\n"
-	);
-	console.log(chalk.dim("  # With custom directory"));
-	console.log(
-		"  boltic serverless create --type blueprint --name my-function --language python --directory ./projects\n"
+		chalk.bold("  --name, -n".padEnd(20)) +
+			"Name of the serverless function"
 	);
 
-	console.log(chalk.cyan("\nTest Examples:\n"));
-	console.log(chalk.dim("  # Basic usage - auto-detect everything"));
-	console.log("  boltic serverless test\n");
-	console.log(chalk.dim("  # Specify port"));
-	console.log("  boltic serverless test --port 3000\n");
+	console.log(chalk.cyan("\nLogs Options:\n"));
+	console.log(
+		chalk.bold("  --name, -n".padEnd(20)) +
+			"Name of the serverless function"
+	);
+	console.log(
+		chalk.bold("  --follow, -f".padEnd(20)) + "Follow logs in real-time"
+	);
+	console.log(
+		chalk.bold("  --lines, -l".padEnd(20)) +
+			"Number of lines to show (default: 100)"
+	);
 
-	console.log(chalk.cyan("\nPublish Examples:\n"));
+	console.log(chalk.cyan("\nBuild Logs Options:\n"));
+	console.log(
+		chalk.bold("  --name, -n".padEnd(20)) +
+			"Name of the serverless function"
+	);
+	console.log(
+		chalk.bold("  --build, -b".padEnd(20)) +
+			"Build ID (prompts if not provided)"
+	);
+
+	console.log(chalk.cyan("\nExamples:\n"));
+
+	console.log(chalk.dim("  # Create a blueprint serverless"));
+	console.log(
+		"  boltic serverless create -t blueprint -n my-api -l nodejs\n"
+	);
+
+	console.log(chalk.dim("  # Test locally on port 3000"));
+	console.log("  boltic serverless test -p 3000\n");
+
 	console.log(chalk.dim("  # Publish from current directory"));
 	console.log("  boltic serverless publish\n");
-	console.log(chalk.dim("  # Publish from specific directory"));
-	console.log("  boltic serverless publish -d ./my-function\n");
 
-	console.log(chalk.cyan("\nList Examples:\n"));
 	console.log(chalk.dim("  # List all serverless functions"));
 	console.log("  boltic serverless list\n");
 
-	console.log(chalk.cyan("\nStatus Examples:\n"));
-	console.log(chalk.dim("  # Get status by name"));
-	console.log("  boltic serverless status -n my-function\n");
-	console.log(chalk.dim("  # Interactive mode (will prompt for name)"));
-	console.log("  boltic serverless status\n");
+	console.log(chalk.dim("  # Check status with polling"));
+	console.log("  boltic serverless status -n my-function --watch\n");
+
+	console.log(chalk.dim("  # View builds for a serverless"));
+	console.log("  boltic serverless builds -n my-function\n");
+
+	console.log(chalk.dim("  # View runtime logs"));
+	console.log("  boltic serverless logs -n my-function -f\n");
+
+	console.log(chalk.dim("  # View build logs"));
+	console.log("  boltic serverless build logs -n my-function\n");
 }
 
 // Execute the serverless command
 const execute = async (args) => {
-	const subCommand = args[0];
+	let subCommand = args[0];
+	let argsToPass = args.slice(1);
 
-	if (!subCommand) {
+	// Handle help flags
+	if (
+		!subCommand ||
+		subCommand === "--help" ||
+		subCommand === "-h" ||
+		args.includes("--help") ||
+		args.includes("-h")
+	) {
 		showHelp();
 		return;
 	}
 
+	// Handle two-word commands like "build logs"
+	if (subCommand === "build" && args[1] === "logs") {
+		subCommand = "build logs";
+		argsToPass = args.slice(2);
+	}
+
 	if (!commands[subCommand]) {
-		console.log(chalk.red("Unknown or missing serverless sub-command.\n"));
+		console.log(chalk.red(`Unknown serverless command: "${subCommand}"\n`));
 		showHelp();
 		return;
 	}
 
 	const commandObj = commands[subCommand];
-	await commandObj.action(args.slice(1));
+	await commandObj.action(argsToPass);
 };
+
+/**
+ * Get the URL for a serverless function
+ */
+function getServerlessUrl(serverless) {
+	const appDomain = serverless.AppDomain?.[0];
+	if (appDomain) {
+		return `https://${appDomain.DomainName}.${appDomain.BaseUrl || "serverless.boltic.app"}`;
+	}
+	return null;
+}
+
+/**
+ * Get status color for display
+ */
+function getStatusColor(status) {
+	switch (status) {
+		case "running":
+			return chalk.green;
+		case "draft":
+		case "building":
+		case "pending":
+			return chalk.yellow;
+		case "stopped":
+		case "failed":
+		case "degraded":
+			return chalk.red;
+		default:
+			return chalk.gray;
+	}
+}
 
 async function handleList(args = []) {
 	try {
@@ -1711,9 +1779,10 @@ async function handleList(args = []) {
 						: "📝";
 			const language = serverless.Config?.CodeOpts?.Language;
 			const status = serverless.Status;
+			const url = getServerlessUrl(serverless);
 
 			return {
-				name: `${serverless.Config.Name}: ${typeIcon} ${runtime} | Status - ${status}${language ? ` | ${language}` : ""} | ID: ${serverless.ID.substring(0, 8)}...`,
+				name: `${serverless.Config.Name}: ${typeIcon} ${runtime} | ${status}${language ? ` | ${language}` : ""}${url ? ` | ${url}` : ""}`,
 				value: serverless,
 			};
 		});
@@ -1731,44 +1800,7 @@ async function handleList(args = []) {
 
 		// Show details of selected serverless
 		if (selected) {
-			const runtime = selected.Config?.Runtime || "code";
-			const typeIcon =
-				runtime === "git"
-					? "📦"
-					: runtime === "container"
-						? "🐳"
-						: "📝";
-
-			console.log("\n" + chalk.cyan("━".repeat(60)));
-			console.log(chalk.bold("\n📌 Selected Serverless Details:\n"));
-			console.log(
-				chalk.cyan("   Name: ") + chalk.white(selected.Config.Name)
-			);
-			console.log(chalk.cyan("   ID: ") + chalk.white(selected.ID));
-			console.log(
-				chalk.cyan("   Type: ") + chalk.white(`${typeIcon} ${runtime}`)
-			);
-			console.log(
-				chalk.cyan("   Status: ") + chalk.white(selected.Status)
-			);
-			if (selected.Config?.CodeOpts?.Language) {
-				console.log(
-					chalk.cyan("   Language: ") +
-						chalk.white(selected.Config.CodeOpts.Language)
-				);
-			}
-			if (selected.Config?.ContainerOpts?.Image) {
-				console.log(
-					chalk.cyan("   Image: ") +
-						chalk.white(selected.Config.ContainerOpts.Image)
-				);
-			}
-			console.log(chalk.cyan("━".repeat(60)));
-			console.log(
-				chalk.dim(
-					"\nUse 'boltic serverless pull' to pull this serverless locally."
-				)
-			);
+			displayServerlessDetails(selected);
 		}
 	} catch (error) {
 		if (
@@ -1786,142 +1818,926 @@ async function handleList(args = []) {
 }
 
 /**
+ * Display detailed information about a serverless function
+ */
+function displayServerlessDetails(serverless) {
+	const runtime = serverless.Config?.Runtime || "code";
+	const typeIcon =
+		runtime === "git" ? "📦" : runtime === "container" ? "🐳" : "📝";
+	const status = serverless.Status;
+	const statusColor = getStatusColor(status);
+	const url = getServerlessUrl(serverless);
+
+	console.log("\n" + chalk.cyan("━".repeat(60)));
+	console.log(chalk.bold("\n📊 Serverless Details\n"));
+	console.log(chalk.cyan("   Name: ") + chalk.white(serverless.Config.Name));
+	console.log(chalk.cyan("   ID: ") + chalk.white(serverless.ID));
+	console.log(
+		chalk.cyan("   Type: ") + chalk.white(`${typeIcon} ${runtime}`)
+	);
+	console.log(chalk.cyan("   Status: ") + statusColor(status));
+
+	if (url) {
+		console.log(chalk.cyan("   URL: ") + chalk.white.bold(url));
+	}
+
+	if (serverless.Config?.CodeOpts?.Language) {
+		console.log(
+			chalk.cyan("   Language: ") +
+				chalk.white(serverless.Config.CodeOpts.Language)
+		);
+	}
+	if (serverless.Config?.ContainerOpts?.Image) {
+		console.log(
+			chalk.cyan("   Image: ") +
+				chalk.white(serverless.Config.ContainerOpts.Image)
+		);
+	}
+	if (serverless.Config?.Resources) {
+		console.log(
+			chalk.cyan("   Resources: ") +
+				chalk.white(
+					`CPU: ${serverless.Config.Resources.CPU}, Memory: ${serverless.Config.Resources.MemoryMB}MB`
+				)
+		);
+	}
+	if (serverless.Config?.Scaling) {
+		console.log(
+			chalk.cyan("   Scaling: ") +
+				chalk.white(
+					`Min: ${serverless.Config.Scaling.Min}, Max: ${serverless.Config.Scaling.Max}`
+				)
+		);
+	}
+	if (serverless.RegionID) {
+		console.log(
+			chalk.cyan("   Region: ") + chalk.white(serverless.RegionID)
+		);
+	}
+	if (serverless.CreatedAt) {
+		console.log(
+			chalk.cyan("   Created: ") +
+				chalk.white(new Date(serverless.CreatedAt).toLocaleString())
+		);
+	}
+	if (serverless.UpdatedAt) {
+		console.log(
+			chalk.cyan("   Updated: ") +
+				chalk.white(new Date(serverless.UpdatedAt).toLocaleString())
+		);
+	}
+
+	console.log();
+	console.log(chalk.cyan("━".repeat(60)));
+	console.log(
+		chalk.dim(
+			"\nTip: Use 'boltic serverless status -n <name> --watch' to poll for status changes."
+		)
+	);
+}
+
+/**
+ * Parse status command arguments
+ */
+function parseStatusArgs(args) {
+	const parsed = {
+		name: null,
+		watch: false,
+		verbose: false,
+		timeout: -1, // -1 means infinite
+	};
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		const nextArg = args[i + 1];
+
+		if ((arg === "--name" || arg === "-n") && nextArg) {
+			parsed.name = nextArg;
+			i++;
+		} else if (arg === "--watch" || arg === "-w") {
+			parsed.watch = true;
+		} else if (arg === "--verbose" || arg === "-v") {
+			parsed.verbose = true;
+		} else if ((arg === "--timeout" || arg === "-t") && nextArg) {
+			parsed.timeout = parseInt(nextArg, 10);
+			i++;
+		} else if (!arg.startsWith("-") && !parsed.name) {
+			// Accept positional argument as name
+			parsed.name = arg;
+		}
+	}
+
+	return parsed;
+}
+
+/**
  * Handle the status command - show status of a serverless function
  */
 async function handleStatus(args = []) {
 	try {
-		// Parse name from args
-		let name = null;
-		const nameIndex = args.indexOf("--name");
-		const shortNameIndex = args.indexOf("-n");
+		const parsedArgs = parseStatusArgs(args);
+		let { name, watch, verbose, timeout } = parsedArgs;
 
-		if (nameIndex !== -1 && args[nameIndex + 1]) {
-			name = args[nameIndex + 1];
-		} else if (shortNameIndex !== -1 && args[shortNameIndex + 1]) {
-			name = args[shortNameIndex + 1];
-		}
-
-		// If name not provided, prompt for it
-		if (!name) {
-			name = await input({
-				message: "Enter serverless name:",
-				validate: (value) => {
-					if (!value || value.trim() === "") {
-						return "Serverless name is required";
-					}
-					return true;
-				},
-			});
+		// Enable verbose mode if requested
+		if (verbose) {
+			setVerboseMode(true);
 		}
 
 		const { apiUrl, token, accountId, session } = await getCurrentEnv();
 
-		console.log(chalk.cyan(`\n🔍 Fetching status for "${name}"...\n`));
+		// If name not provided, show list selector
+		if (!name) {
+			console.log(chalk.cyan("\n📋 Fetching serverless functions...\n"));
 
-		// Get serverless by name using query parameter
-		const result = await listAllServerless(
+			const allServerless = await listAllServerless(
+				apiUrl,
+				token,
+				accountId,
+				session
+			);
+
+			if (!allServerless || !Array.isArray(allServerless)) {
+				console.error(
+					chalk.red(
+						"\n❌ Failed to fetch serverless: Invalid response format"
+					)
+				);
+				return;
+			}
+
+			if (allServerless.length === 0) {
+				console.log(chalk.yellow("No serverless functions found."));
+				return;
+			}
+
+			// Build choices for the list
+			const choices = allServerless.map((serverless) => {
+				const runtime = serverless.Config?.Runtime || "code";
+				const typeIcon =
+					runtime === "git"
+						? "📦"
+						: runtime === "container"
+							? "🐳"
+							: "📝";
+				const status = serverless.Status;
+				const statusColor = getStatusColor(status);
+
+				return {
+					name: `${serverless.Config.Name} | ${typeIcon} ${runtime} | ${statusColor(status)}`,
+					value: serverless,
+				};
+			});
+
+			const selected = await search({
+				message: "Select a serverless function:",
+				source: async (term) => {
+					if (!term) return choices;
+					return choices.filter((choice) =>
+						choice.name.toLowerCase().includes(term.toLowerCase())
+					);
+				},
+			});
+
+			if (!selected) {
+				return;
+			}
+
+			// Display status directly since we have the full object
+			displayServerlessDetails(selected);
+
+			// If watch mode, continue polling
+			if (watch) {
+				name = selected.Config.Name;
+			} else {
+				return;
+			}
+		}
+
+		// If not in watch mode (and name was provided), just fetch and display once
+		if (!watch) {
+			console.log(chalk.cyan(`\n🔍 Fetching status for "${name}"...\n`));
+
+			// First find the serverless by name to get the ID
+			const result = await listAllServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				name
+			);
+
+			if (!result || !Array.isArray(result) || !result[0]) {
+				console.error(
+					chalk.red(`\n❌ Serverless "${name}" not found.`)
+				);
+				console.log(
+					chalk.yellow(
+						"\nUse 'boltic serverless list' to see all serverless functions."
+					)
+				);
+				return;
+			}
+
+			// Use pullServerless to get the full details with accurate status
+			const serverlessId = result[0].ParentID || result[0].ID;
+			const serverless = await pullServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				serverlessId
+			);
+
+			if (!serverless) {
+				console.error(
+					chalk.red("\n❌ Failed to fetch serverless details")
+				);
+				return;
+			}
+
+			displayServerlessDetails(serverless);
+			return;
+		}
+
+		// Watch mode - poll for status changes
+		console.log(chalk.cyan(`\n👁️  Watching status for "${name}"...\n`));
+		const timeoutMsg = timeout > 0 ? ` (timeout: ${timeout}s)` : "";
+		console.log(chalk.dim(`Press Ctrl+C to stop watching.${timeoutMsg}\n`));
+
+		// First, get the serverless ID
+		const initialResult = await listAllServerless(
 			apiUrl,
 			token,
 			accountId,
 			session,
-			name // Pass name as query parameter
+			name
 		);
 
-		if (!result || !Array.isArray(result)) {
-			console.error(
-				chalk.red(
-					"\n❌ Failed to fetch serverless: Invalid response format"
-				)
-			);
-			return;
-		}
-
-		// Get first element (name is unique)
-		const serverless = result[0];
-
-		if (!serverless) {
+		if (
+			!initialResult ||
+			!Array.isArray(initialResult) ||
+			!initialResult[0]
+		) {
 			console.error(chalk.red(`\n❌ Serverless "${name}" not found.`));
-			console.log(
-				chalk.yellow(
-					"\nUse 'boltic serverless list' to see all serverless functions."
-				)
-			);
 			return;
 		}
 
-		// Display status
+		const serverlessId = initialResult[0].ParentID || initialResult[0].ID;
+		const terminalStates = ["running", "failed", "degraded", "suspended"];
+		let lastStatus = null;
+		let iteration = 0;
+		const startTime = Date.now();
+
+		while (true) {
+			iteration++;
+
+			// Check timeout (-1 means infinite)
+			if (timeout > 0) {
+				const elapsed = Math.floor((Date.now() - startTime) / 1000);
+				if (elapsed >= timeout) {
+					console.log(
+						chalk.yellow(
+							`\n\n⏱️  Timeout reached after ${timeout} seconds.`
+						)
+					);
+					return;
+				}
+			}
+
+			// Use pullServerless for accurate status
+			const serverless = await pullServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				serverlessId
+			);
+
+			if (!serverless) {
+				console.error(
+					chalk.red(`\n❌ Failed to fetch serverless status.`)
+				);
+				return;
+			}
+			const status = serverless.Status;
+			const statusColor = getStatusColor(status);
+			const url = getServerlessUrl(serverless);
+
+			// Show status update
+			const timestamp = new Date().toLocaleTimeString();
+			if (status !== lastStatus) {
+				console.log(
+					chalk.dim(`[${timestamp}]`) +
+						` Status: ${statusColor(status)}` +
+						(url ? chalk.dim(` | ${url}`) : "")
+				);
+				lastStatus = status;
+			} else if (iteration % 3 === 0) {
+				// Show a dot every 3 iterations to indicate it's still polling
+				process.stdout.write(chalk.dim("."));
+			}
+
+			// Check if we've reached a terminal state
+			if (terminalStates.includes(status)) {
+				console.log();
+				displayServerlessDetails(serverless);
+				console.log(
+					chalk.green(`\n✓ Reached terminal state: ${status}`)
+				);
+				return;
+			}
+
+			// Wait before next poll
+			await new Promise((resolve) => setTimeout(resolve, 5000));
+		}
+	} catch (error) {
+		if (
+			error.message &&
+			error.message.includes("User force closed the prompt")
+		) {
+			console.log(chalk.yellow("\n⚠️ Operation cancelled by user"));
+			return;
+		}
+		console.error(
+			chalk.red("\n❌ An error occurred:"),
+			error.message || "Unknown error"
+		);
+	}
+}
+
+/**
+ * Helper to select a serverless function interactively
+ */
+async function selectServerless(
+	apiUrl,
+	token,
+	accountId,
+	session,
+	message = "Select a serverless function:"
+) {
+	const allServerless = await listAllServerless(
+		apiUrl,
+		token,
+		accountId,
+		session
+	);
+
+	if (!allServerless || !Array.isArray(allServerless)) {
+		throw new Error("Failed to fetch serverless: Invalid response format");
+	}
+
+	if (allServerless.length === 0) {
+		console.log(chalk.yellow("No serverless functions found."));
+		return null;
+	}
+
+	const choices = allServerless.map((serverless) => {
 		const runtime = serverless.Config?.Runtime || "code";
 		const typeIcon =
 			runtime === "git" ? "📦" : runtime === "container" ? "🐳" : "📝";
 		const status = serverless.Status;
-		const statusColor =
-			status === "running"
-				? chalk.green
-				: status === "draft"
-					? chalk.yellow
-					: status === "stopped"
+
+		return {
+			name: `${serverless.Config.Name} | ${typeIcon} ${runtime} | ${status}`,
+			value: serverless,
+		};
+	});
+
+	return await search({
+		message,
+		source: async (term) => {
+			if (!term) return choices;
+			return choices.filter((choice) =>
+				choice.name.toLowerCase().includes(term.toLowerCase())
+			);
+		},
+	});
+}
+
+/**
+ * Handle the builds command - list builds for a serverless function
+ */
+async function handleBuilds(args = []) {
+	try {
+		// Parse name from args (supports --name, -n, or positional)
+		let name = null;
+		for (let i = 0; i < args.length; i++) {
+			const arg = args[i];
+			if ((arg === "--name" || arg === "-n") && args[i + 1]) {
+				name = args[i + 1];
+				break;
+			} else if (!arg.startsWith("-") && !name) {
+				name = arg;
+			}
+		}
+
+		const { apiUrl, token, accountId, session } = await getCurrentEnv();
+
+		let serverless;
+
+		// If name not provided, show selector
+		if (!name) {
+			console.log(chalk.cyan("\n📋 Select a serverless function...\n"));
+			serverless = await selectServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				"Select serverless to view builds:"
+			);
+
+			if (!serverless) {
+				return;
+			}
+		} else {
+			// Fetch by name
+			const result = await listAllServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				name
+			);
+
+			if (!result || !Array.isArray(result) || !result[0]) {
+				console.error(
+					chalk.red(`\n❌ Serverless "${name}" not found.`)
+				);
+				return;
+			}
+			serverless = result[0];
+		}
+
+		// Check if serverless is container type - builds are not available
+		const runtime = serverless.Config?.Runtime || "code";
+		if (runtime === "container") {
+			console.log(
+				chalk.yellow(
+					`\n⚠️  Builds are not available for container-type serverless functions.`
+				)
+			);
+			console.log(
+				chalk.dim(
+					`   Container images are built externally and pulled directly.`
+				)
+			);
+			console.log(
+				chalk.dim(
+					`\n   To view runtime logs, use: boltic serverless logs ${serverless.Config.Name}`
+				)
+			);
+			return;
+		}
+
+		console.log(
+			chalk.cyan(
+				`\n🔨 Fetching builds for "${serverless.Config.Name}"...\n`
+			)
+		);
+
+		const buildsData = await getServerlessBuilds(
+			apiUrl,
+			token,
+			accountId,
+			session,
+			serverless.ID
+		);
+
+		if (!buildsData || !buildsData.data || buildsData.data.length === 0) {
+			console.log(chalk.yellow("No builds found for this serverless."));
+			return;
+		}
+
+		const builds = buildsData.data;
+
+		console.log(chalk.green(`Found ${builds.length} build(s):\n`));
+		console.log(chalk.cyan("━".repeat(100)));
+		console.log(
+			chalk.bold("  #  ") +
+				chalk.bold("Status".padEnd(12)) +
+				chalk.bold("Version".padEnd(10)) +
+				chalk.bold("Created".padEnd(22)) +
+				chalk.bold("Build ID")
+		);
+		console.log(chalk.cyan("━".repeat(100)));
+
+		builds.forEach((build, index) => {
+			const status =
+				build.StatusHistory?.slice(-1)[0]?.Status ||
+				build.Status ||
+				"unknown";
+			const statusColor = getStatusColor(status);
+			const createdAt = build.CreatedAt
+				? new Date(build.CreatedAt).toLocaleString()
+				: "N/A";
+			const version = build.Version || "N/A";
+
+			console.log(
+				chalk.dim(`  ${String(index + 1).padStart(2)} `) +
+					statusColor(status.padEnd(12)) +
+					`v${String(version).padEnd(9)}` +
+					createdAt.padEnd(22) +
+					build.ID
+			);
+
+			// Show status history for recent builds (first 3)
+			if (
+				index < 3 &&
+				build.StatusHistory &&
+				build.StatusHistory.length > 1
+			) {
+				const history = build.StatusHistory.map((h) => {
+					const ts = h.Timestamp
+						? new Date(h.Timestamp).toLocaleTimeString()
+						: "";
+					return `${h.Status}${ts ? ` (${ts})` : ""}`;
+				}).join(" → ");
+				console.log(chalk.dim(`      └─ ${history}`));
+			}
+		});
+
+		console.log(chalk.cyan("━".repeat(100)));
+		console.log(
+			chalk.dim(
+				"\nTip: Use 'boltic serverless build logs -n <name>' to view logs for a build."
+			)
+		);
+	} catch (error) {
+		if (
+			error.message &&
+			error.message.includes("User force closed the prompt")
+		) {
+			console.log(chalk.yellow("\n⚠️ Operation cancelled by user"));
+			return;
+		}
+		console.error(
+			chalk.red("\n❌ An error occurred:"),
+			error.message || "Unknown error"
+		);
+	}
+}
+
+/**
+ * Handle the logs command - show logs for a serverless function
+ */
+async function handleLogs(args = []) {
+	try {
+		// Parse args (supports --name, -n, or positional)
+		let name = null;
+		let follow = false;
+		let lines = 100;
+
+		for (let i = 0; i < args.length; i++) {
+			const arg = args[i];
+			const nextArg = args[i + 1];
+
+			if ((arg === "--name" || arg === "-n") && nextArg) {
+				name = nextArg;
+				i++;
+			} else if (arg === "--follow" || arg === "-f") {
+				follow = true;
+			} else if ((arg === "--lines" || arg === "-l") && nextArg) {
+				lines = parseInt(nextArg, 10) || 100;
+				i++;
+			} else if (!arg.startsWith("-") && !name) {
+				// Accept positional argument as name
+				name = arg;
+			}
+		}
+
+		const { apiUrl, token, accountId, session } = await getCurrentEnv();
+
+		let serverless;
+
+		// If name not provided, show selector
+		if (!name) {
+			console.log(chalk.cyan("\n📋 Select a serverless function...\n"));
+			serverless = await selectServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				"Select serverless to view logs:"
+			);
+
+			if (!serverless) {
+				return;
+			}
+		} else {
+			// Fetch by name
+			const result = await listAllServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				name
+			);
+
+			if (!result || !Array.isArray(result) || !result[0]) {
+				console.error(
+					chalk.red(`\n❌ Serverless "${name}" not found.`)
+				);
+				return;
+			}
+			serverless = result[0];
+		}
+
+		console.log(
+			chalk.cyan(
+				`\n📜 Fetching logs for "${serverless.Config.Name}"...\n`
+			)
+		);
+
+		if (follow) {
+			console.log(chalk.dim("Following logs... Press Ctrl+C to stop.\n"));
+		}
+
+		const fetchAndDisplayLogs = async (timestampEnd = null) => {
+			const now = Math.floor(Date.now() / 1000);
+			const logsData = await getServerlessLogs(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				serverless.ID,
+				{
+					limit: lines,
+					timestampEnd: timestampEnd || now,
+					timestampStart: (timestampEnd || now) - 24 * 60 * 60,
+				}
+			);
+
+			if (!logsData || !logsData.data || logsData.data.length === 0) {
+				if (!follow) {
+					console.log(
+						chalk.yellow("No logs found for this serverless.")
+					);
+				}
+				return timestampEnd;
+			}
+
+			const logs = logsData.data;
+			let latestTimestamp = timestampEnd;
+
+			logs.forEach((log) => {
+				// Timestamp is unix epoch in seconds
+				const timestamp = log.Timestamp
+					? new Date(log.Timestamp * 1000).toLocaleTimeString()
+					: "";
+				const severity = log.Severity || "INFO";
+				const severityColor =
+					severity === "ERROR"
 						? chalk.red
-						: chalk.gray;
+						: severity === "WARNING" || severity === "WARN"
+							? chalk.yellow
+							: severity === "DEBUG"
+								? chalk.blue
+								: chalk.gray;
 
-		console.log(chalk.cyan("━".repeat(60)));
-		console.log(chalk.bold("\n📊 Serverless Status\n"));
-		console.log(
-			chalk.cyan("   Name: ") + chalk.white(serverless.Config.Name)
+				// Parse the Log field which may contain JSON
+				let message = "";
+				if (log.Log) {
+					try {
+						const parsed = JSON.parse(log.Log);
+						message = parsed.msg || parsed.message || log.Log;
+					} catch {
+						// Not JSON, use as-is
+						message = log.Log;
+					}
+				}
+
+				console.log(
+					chalk.dim(`[${timestamp}]`) +
+						` ${severityColor(severity.padEnd(7))} ${message}`
+				);
+
+				if (
+					log.Timestamp &&
+					(!latestTimestamp || log.Timestamp > latestTimestamp)
+				) {
+					latestTimestamp = log.Timestamp;
+				}
+			});
+
+			return latestTimestamp;
+		};
+
+		let lastTimestamp = await fetchAndDisplayLogs();
+
+		if (follow) {
+			while (true) {
+				await new Promise((resolve) => setTimeout(resolve, 3000));
+				lastTimestamp = await fetchAndDisplayLogs(lastTimestamp);
+			}
+		}
+	} catch (error) {
+		if (
+			error.message &&
+			error.message.includes("User force closed the prompt")
+		) {
+			console.log(chalk.yellow("\n⚠️ Operation cancelled by user"));
+			return;
+		}
+		console.error(
+			chalk.red("\n❌ An error occurred:"),
+			error.message || "Unknown error"
 		);
-		console.log(chalk.cyan("   ID: ") + chalk.white(serverless.ID));
-		console.log(
-			chalk.cyan("   Type: ") + chalk.white(`${typeIcon} ${runtime}`)
+	}
+}
+
+/**
+ * Handle the "build logs" command - show logs for a specific build
+ */
+async function handleBuildLogs(args = []) {
+	try {
+		// Parse args (supports --name, -n, or positional)
+		let name = null;
+		let buildId = null;
+
+		for (let i = 0; i < args.length; i++) {
+			const arg = args[i];
+			const nextArg = args[i + 1];
+
+			if ((arg === "--name" || arg === "-n") && nextArg) {
+				name = nextArg;
+				i++;
+			} else if ((arg === "--build" || arg === "-b") && nextArg) {
+				buildId = nextArg;
+				i++;
+			} else if (!arg.startsWith("-") && !name) {
+				// Accept positional argument as name
+				name = arg;
+			}
+		}
+
+		const { apiUrl, token, accountId, session } = await getCurrentEnv();
+
+		let serverless;
+
+		// If name not provided, show selector
+		if (!name) {
+			console.log(chalk.cyan("\n📋 Select a serverless function...\n"));
+			serverless = await selectServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				"Select serverless to view build logs:"
+			);
+
+			if (!serverless) {
+				return;
+			}
+		} else {
+			// Fetch by name
+			const result = await listAllServerless(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				name
+			);
+
+			if (!result || !Array.isArray(result) || !result[0]) {
+				console.error(
+					chalk.red(`\n❌ Serverless "${name}" not found.`)
+				);
+				return;
+			}
+			serverless = result[0];
+		}
+
+		// Check if serverless is container type - build logs are not available
+		const runtime = serverless.Config?.Runtime || "code";
+		if (runtime === "container") {
+			console.log(
+				chalk.yellow(
+					`\n⚠️  Build logs are not available for container-type serverless functions.`
+				)
+			);
+			console.log(
+				chalk.dim(
+					`   Container images are built externally and pulled directly.`
+				)
+			);
+			console.log(
+				chalk.dim(
+					`\n   To view runtime logs, use: boltic serverless logs ${serverless.Config.Name}`
+				)
+			);
+			return;
+		}
+
+		// If build ID not provided, fetch builds and let user select
+		if (!buildId) {
+			console.log(
+				chalk.cyan(
+					`\n🔨 Fetching builds for "${serverless.Config.Name}"...\n`
+				)
+			);
+
+			const buildsData = await getServerlessBuilds(
+				apiUrl,
+				token,
+				accountId,
+				session,
+				serverless.ID
+			);
+
+			if (
+				!buildsData ||
+				!buildsData.data ||
+				buildsData.data.length === 0
+			) {
+				console.log(
+					chalk.yellow("No builds found for this serverless.")
+				);
+				return;
+			}
+
+			const builds = buildsData.data;
+
+			const buildChoices = builds.map((build, index) => {
+				const status =
+					build.StatusHistory?.slice(-1)[0]?.Status ||
+					build.Status ||
+					"unknown";
+				const statusColor = getStatusColor(status);
+				const createdAt = build.CreatedAt
+					? new Date(build.CreatedAt).toLocaleString()
+					: "N/A";
+
+				return {
+					name: `#${index + 1} | ${statusColor(status)} | ${createdAt} | ${build.ID.substring(0, 8)}...`,
+					value: build,
+				};
+			});
+
+			const selectedBuild = await search({
+				message: "Select a build to view logs:",
+				source: async (term) => {
+					if (!term) return buildChoices;
+					return buildChoices.filter((choice) =>
+						choice.name.toLowerCase().includes(term.toLowerCase())
+					);
+				},
+			});
+
+			if (!selectedBuild) {
+				return;
+			}
+
+			buildId = selectedBuild.ID;
+		}
+
+		console.log(chalk.cyan(`\n📜 Fetching build logs...\n`));
+
+		const logsData = await getBuildLogs(
+			apiUrl,
+			token,
+			accountId,
+			session,
+			serverless.ID,
+			buildId
 		);
-		console.log(chalk.cyan("   Status: ") + statusColor(status));
 
-		if (serverless.Config?.CodeOpts?.Language) {
-			console.log(
-				chalk.cyan("   Language: ") +
-					chalk.white(serverless.Config.CodeOpts.Language)
-			);
-		}
-		if (serverless.Config?.ContainerOpts?.Image) {
-			console.log(
-				chalk.cyan("   Image: ") +
-					chalk.white(serverless.Config.ContainerOpts.Image)
-			);
-		}
-		if (serverless.Config?.Resources) {
-			console.log(
-				chalk.cyan("   Resources: ") +
-					chalk.white(
-						`CPU: ${serverless.Config.Resources.CPU}, Memory: ${serverless.Config.Resources.MemoryMB}MB`
-					)
-			);
-		}
-		if (serverless.Config?.Scaling) {
-			console.log(
-				chalk.cyan("   Scaling: ") +
-					chalk.white(
-						`Min: ${serverless.Config.Scaling.Min}, Max: ${serverless.Config.Scaling.Max}`
-					)
-			);
-		}
-		if (serverless.RegionID) {
-			console.log(
-				chalk.cyan("   Region: ") + chalk.white(serverless.RegionID)
-			);
-		}
-		if (serverless.CreatedAt) {
-			console.log(
-				chalk.cyan("   Created: ") +
-					chalk.white(new Date(serverless.CreatedAt).toLocaleString())
-			);
-		}
-		if (serverless.UpdatedAt) {
-			console.log(
-				chalk.cyan("   Updated: ") +
-					chalk.white(new Date(serverless.UpdatedAt).toLocaleString())
-			);
+		if (!logsData || !logsData.data) {
+			console.log(chalk.yellow("No logs found for this build."));
+			return;
 		}
 
-		console.log();
-		console.log(chalk.cyan("━".repeat(60)));
+		console.log(chalk.cyan("━".repeat(80)));
+		console.log(chalk.bold("Build Logs:\n"));
+
+		// Handle different log formats
+		const logs = Array.isArray(logsData.data)
+			? logsData.data
+			: [logsData.data];
+
+		logs.forEach((log) => {
+			if (typeof log === "string") {
+				console.log(log);
+			} else if (log.Log) {
+				// Log field contains the actual log content (may include ANSI colors)
+				// Output directly to preserve color codes
+				process.stdout.write(log.Log);
+				if (!log.Log.endsWith("\n")) {
+					process.stdout.write("\n");
+				}
+			} else if (log.Message || log.message) {
+				const timestamp = log.Timestamp
+					? new Date(log.Timestamp * 1000).toLocaleTimeString()
+					: "";
+				console.log(
+					chalk.dim(`[${timestamp}]`) +
+						` ${log.Message || log.message}`
+				);
+			} else {
+				console.log(JSON.stringify(log, null, 2));
+			}
+		});
+
+		console.log("\n" + chalk.cyan("━".repeat(80)));
 	} catch (error) {
 		if (
 			error.message &&

@@ -19,67 +19,74 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 			description: "Authenticate the user and save access token",
 			action: async (args) => {
 				// Support PAT-based login via flags, e.g.:
-				//   boltic login --pat XXXXX --account_id YYYYYY
-				//   boltic login --pat=XXXXX --account-id=YYYYYY
-				let patFromArg;
-				let accountIdFromArg;
-				let hasPatFlag = false;
-				let hasAccountIdFlag = false;
+				//   boltic login --token XXXXX --account-id YYYYYY
+				//   boltic login --token=XXXXX --acc-id=YYYYYY
+				let tokenFromArg;
+				let orgIdFromArg;
+				let hasTokenFlag = false;
+				let hasOrgIdFlag = false;
 
 				for (let i = 0; i < args.length; i++) {
 					const arg = args[i];
 
-					if (arg === "--pat") {
-						hasPatFlag = true;
+					if (arg === "--token") {
+						hasTokenFlag = true;
 						if (
 							i + 1 < args.length &&
 							!args[i + 1].startsWith("--")
 						) {
-							patFromArg = args[i + 1];
+							tokenFromArg = args[i + 1];
 							i++;
 						}
 						continue;
 					}
 
-					if (arg === "--account_id" || arg === "--account-id") {
-						hasAccountIdFlag = true;
+					if (
+						arg === "--account_id" ||
+						arg === "--account-id" ||
+						arg === "--acc_id" ||
+						arg === "--acc-id"
+					) {
+						hasOrgIdFlag = true;
 						if (
 							i + 1 < args.length &&
 							!args[i + 1].startsWith("--")
 						) {
-							accountIdFromArg = args[i + 1];
+							orgIdFromArg = args[i + 1];
 							i++;
 						}
 						continue;
 					}
 
-					if (arg.startsWith("--pat=")) {
-						hasPatFlag = true;
-						patFromArg = arg.split("=")[1];
+					if (arg.startsWith("--token=")) {
+						hasTokenFlag = true;
+						tokenFromArg = arg.split("=")[1];
 						continue;
 					}
 
 					if (
 						arg.startsWith("--account_id=") ||
-						arg.startsWith("--account-id=")
+						arg.startsWith("--account-id=") ||
+						arg.startsWith("--acc_id=") ||
+						arg.startsWith("--acc-id=")
 					) {
-						hasAccountIdFlag = true;
-						accountIdFromArg = arg.split("=")[1];
+						hasOrgIdFlag = true;
+						orgIdFromArg = arg.split("=")[1];
 						continue;
 					}
 				}
 
-				// If any PAT-related flag is present, delegate to PAT login handler.
+				// If any token-related flag is present, delegate to PAT login handler.
 				// `handlePatLogin` will decide whether to prompt based on which values are provided.
 				if (
-					hasPatFlag ||
-					hasAccountIdFlag ||
-					patFromArg ||
-					accountIdFromArg
+					hasTokenFlag ||
+					hasOrgIdFlag ||
+					tokenFromArg ||
+					orgIdFromArg
 				) {
 					await AuthCommands.handlePatLogin(
-						patFromArg,
-						accountIdFromArg
+						tokenFromArg,
+						orgIdFromArg
 					);
 					return;
 				}
@@ -128,12 +135,14 @@ const createCLI = (consoleUrl, apiUrl, serviceName, env) => {
 			}
 
 			const command = args[2];
-			const subCommand = args.length >= 3 ? args[3] : undefined;
 
-			if (!command) {
+			// Show global help only if no command or command is --help/-h
+			if (!command || command === "--help" || command === "-h") {
 				showHelp(commands);
 				return;
 			}
+
+			const subCommand = args.length >= 3 ? args[3] : undefined;
 
 			if (!commands[command]) {
 				console.log(
@@ -217,15 +226,41 @@ async function showHelp(commands) {
 	}
 
 	console.log(chalk.bold.yellow(`\nBoltic CLI Version: ${version}\n`));
-	console.log("\nUsage: boltic [command]\n");
-	console.log("Available commands:");
+	console.log(chalk.cyan("Usage:") + " boltic [command] [options]\n");
+
+	console.log(chalk.cyan("Commands:"));
 	Object.keys(commands).forEach((cmd) => {
-		console.log(`  ${cmd} - ${commands[cmd].description}`);
+		console.log(
+			chalk.bold(`  ${cmd.padEnd(15)}`) + commands[cmd].description
+		);
 	});
-	console.log("\nExamples:");
-	console.log("  boltic login");
-	console.log("  boltic integration create");
-	console.log("  boltic help\n");
+
+	console.log(chalk.cyan("\nGlobal Options:"));
+	console.log(
+		chalk.bold("  --help, -h".padEnd(18)) + "Show help for a command"
+	);
+	console.log(chalk.bold("  --verbose".padEnd(18)) + "Enable verbose output");
+
+	console.log(chalk.cyan("\nLogin Options:"));
+	console.log(
+		chalk.bold("  --token <token>".padEnd(18)) + "Personal access token"
+	);
+	console.log(
+		chalk.bold("  --account-id <id>".padEnd(18)) +
+			"Account ID (alias: --acc-id)"
+	);
+
+	console.log(chalk.cyan("\nExamples:"));
+	console.log(chalk.dim("  # Interactive browser login"));
+	console.log("  boltic login\n");
+	console.log(chalk.dim("  # Login with PAT token"));
+	console.log(
+		"  boltic login --token YOUR_TOKEN --account-id YOUR_ACCOUNT_ID\n"
+	);
+	console.log(chalk.dim("  # Get help for serverless commands"));
+	console.log("  boltic serverless --help\n");
+	console.log(chalk.dim("  # Create an integration"));
+	console.log("  boltic integration create\n");
 }
 
 async function handleIntegration(args) {
