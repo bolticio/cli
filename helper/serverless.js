@@ -36,6 +36,233 @@ export const LANGUAGE_CHOICES = [
 	{ name: "Java", value: "java" },
 ];
 
+// Language-specific .gitignore templates
+export const GITIGNORE_TEMPLATES = {
+	nodejs: `# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build output
+dist/
+build/
+.next/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Boltic auto-generated files
+autogen_*.js
+`,
+	python: `# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Boltic auto-generated files
+autogen_*.py
+`,
+	golang: `# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+bin/
+/main
+
+# Test binary
+*.test
+
+# Go workspace
+go.work
+go.work.sum
+
+# Vendor directory (if not committing dependencies)
+# vendor/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Boltic auto-generated files
+autogen_*.go
+`,
+	java: `# Compiled class files
+*.class
+
+# Build output
+target/
+build/
+out/
+bin/
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# Maven
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+
+# Gradle
+.gradle/
+gradle/
+gradlew
+gradlew.bat
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Boltic auto-generated files
+AutogenIndex.java
+`,
+	container: `# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+`,
+};
+
+/**
+ * Create a .gitignore file for the serverless project
+ * @param {string} targetDir - Directory to create .gitignore in
+ * @param {string} language - Programming language (nodejs, python, golang, java, container)
+ * @returns {boolean} - True if created successfully
+ */
+export function createGitignore(targetDir, language) {
+	const gitignorePath = path.join(targetDir, ".gitignore");
+
+	// Don't overwrite existing .gitignore
+	if (fs.existsSync(gitignorePath)) {
+		return false;
+	}
+
+	const template =
+		GITIGNORE_TEMPLATES[language] || GITIGNORE_TEMPLATES.nodejs;
+
+	try {
+		fs.writeFileSync(gitignorePath, template);
+		return true;
+	} catch {
+		// Silently fail - .gitignore is optional
+		return false;
+	}
+}
+
 /**
  * Parse command line arguments for the create command
  */
@@ -45,6 +272,7 @@ export function parseCreateArgs(args) {
 		language: null,
 		directory: process.cwd(),
 		type: null, // code, git, or container
+		noGitignore: false, // Skip .gitignore creation
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -68,6 +296,8 @@ export function parseCreateArgs(args) {
 			}
 			parsed.type = typeValue;
 			i++;
+		} else if (arg === "--no-gitignore") {
+			parsed.noGitignore = true;
 		}
 	}
 
@@ -1071,6 +1301,7 @@ export function displayTestStartupMessage(port) {
 export function parsePublishArgs(args) {
 	const parsed = {
 		directory: process.cwd(),
+		verbose: false,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -1080,6 +1311,8 @@ export function parsePublishArgs(args) {
 		if ((arg === "--directory" || arg === "-d") && nextArg) {
 			parsed.directory = path.resolve(nextArg);
 			i++;
+		} else if (arg === "--verbose" || arg === "-v") {
+			parsed.verbose = true;
 		} else if (!arg.startsWith("-") && !parsed._dirSet) {
 			// Accept positional argument as directory (e.g., `boltic serverless publish ./my-project`)
 			parsed.directory = path.resolve(arg);

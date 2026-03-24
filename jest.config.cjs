@@ -56,6 +56,7 @@ module.exports = {
 		"babel.config.cjs",
 		"jest.config.cjs",
 		"eslint.config.js",
+		"serverless-test/"
 	],
 	testMatch: ["**/__tests__/*.test.js"],
 	verbose: true,

@@ -31,3 +31,8 @@ build/
 .temp/
 .claude/
 github
+
+my-fn
+my-git-fn
+test-func
+serverless-test/

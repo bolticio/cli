@@ -2882,7 +2882,7 @@ describe("Serverless Commands", () => {
 				"-t",
 				"code",
 				"-n",
-				"test-func",
+				"serverless-test/test-func",
 				"--language",
 				"nodejs",
 			]);
@@ -3256,7 +3256,7 @@ describe("Serverless Commands", () => {
 				"-t",
 				"git",
 				"-n",
-				"my-git-fn",
+				"serverless-test/my-git-fn",
 				"-l",
 				"nodejs",
 			]);
@@ -3946,7 +3946,7 @@ serverlessConfig:
 				"-t",
 				"code",
 				"-n",
-				"my-fn",
+				"serverless-test/my-fn",
 			]);
 
 			expect(mockSearch).toHaveBeenCalled();
