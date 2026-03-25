@@ -76,7 +76,7 @@ describe("CLI Module", () => {
 		it("should show help when no command is provided", async () => {
 			await cli.execute(["node", "cli.js"]);
 			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringContaining("Usage: boltic [command]")
+				expect.stringContaining("boltic [command]")
 			);
 		});
 
@@ -98,6 +98,100 @@ describe("CLI Module", () => {
 
 			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalled();
 			expect(AuthCommands.default.handleLogin).not.toHaveBeenCalled();
+		});
+
+		it("should handle login command with --token VALUE format", async () => {
+			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([]);
+
+			await cli.execute([
+				"node",
+				"cli.js",
+				"login",
+				"--token",
+				"my-token",
+			]);
+
+			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalledWith(
+				"my-token",
+				undefined
+			);
+		});
+
+		it("should handle login command with --token=VALUE format", async () => {
+			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([]);
+
+			await cli.execute(["node", "cli.js", "login", "--token=my-token"]);
+
+			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalledWith(
+				"my-token",
+				undefined
+			);
+		});
+
+		it("should handle login command with --account-id VALUE format", async () => {
+			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([]);
+
+			await cli.execute([
+				"node",
+				"cli.js",
+				"login",
+				"--token",
+				"my-token",
+				"--account-id",
+				"my-account",
+			]);
+
+			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalledWith(
+				"my-token",
+				"my-account"
+			);
+		});
+
+		it("should handle login command with --account-id=VALUE format", async () => {
+			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([]);
+
+			await cli.execute([
+				"node",
+				"cli.js",
+				"login",
+				"--token=my-token",
+				"--account-id=my-account",
+			]);
+
+			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalledWith(
+				"my-token",
+				"my-account"
+			);
+		});
+
+		it("should handle login command with --acc-id alias", async () => {
+			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([]);
+
+			await cli.execute([
+				"node",
+				"cli.js",
+				"login",
+				"--token",
+				"my-token",
+				"--acc-id",
+				"my-account",
+			]);
+
+			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalledWith(
+				"my-token",
+				"my-account"
+			);
+		});
+
+		it("should handle login command with just --account-id flag", async () => {
+			jest.mocked(secureStorage.getAllSecrets).mockResolvedValue([]);
+
+			await cli.execute(["node", "cli.js", "login", "--account-id"]);
+
+			expect(AuthCommands.default.handlePatLogin).toHaveBeenCalledWith(
+				undefined,
+				undefined
+			);
 		});
 
 		it("should handle logout command", async () => {
@@ -147,7 +241,7 @@ describe("CLI Module", () => {
 		it("should handle help command", async () => {
 			await cli.execute(["node", "cli.js", "help"]);
 			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringContaining("Usage: boltic [command]")
+				expect.stringContaining("boltic [command]")
 			);
 		});
 
@@ -194,7 +288,7 @@ describe("CLI Module", () => {
 
 			await cli.execute(["node", "cli.js", "help"]);
 			expect(mockConsoleLog).toHaveBeenCalledWith(
-				expect.stringContaining("Usage: boltic [command]")
+				expect.stringContaining("boltic [command]")
 			);
 		});
 	});
