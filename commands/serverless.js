@@ -1290,7 +1290,6 @@ async function handleTest(args = []) {
 		// Install Python dependencies using virtual environment
 		if (language === "python") {
 			const venvPath = path.join(directory, ".venv");
-			const venvPython = path.join(venvPath, "bin", "python3");
 			const venvPip = path.join(venvPath, "bin", "pip3");
 
 			// Create virtual environment if it doesn't exist
@@ -1699,12 +1698,9 @@ async function handlePull(args) {
 		}
 		// console.log("selectes serverless : ",pulledServerless)
 
-		// Get the app name, language and type for the folder name
+		// Get the app name and type for the folder name
 		const appName =
 			pulledServerless?.Config?.Name || selectedServerless.Config?.Name;
-		const language =
-			pulledServerless?.Config?.CodeOpts?.Language?.split("/")[0] ||
-			"nodejs";
 		const serverlessType = pulledServerless?.Config?.Runtime || "code";
 
 		// Create folder name similar to create command
@@ -1949,7 +1945,7 @@ function getStatusColor(status) {
 	}
 }
 
-async function handleList(args = []) {
+async function handleList(_args = []) {
 	try {
 		const { apiUrl, token, accountId, session } = await getCurrentEnv();
 
