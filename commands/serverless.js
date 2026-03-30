@@ -267,7 +267,7 @@ async function handleCreate(args = []) {
  */
 async function checkServerlessExists(name) {
 	const env = await getCurrentEnv();
-	if (!env || !env.token || !env.session) {
+	if (!env || !env.token) {
 		return null; // Can't check without auth, let the create call handle auth error
 	}
 
@@ -379,7 +379,7 @@ async function handleCodeTypeCreate(
 
 	// Get authentication credentials
 	const env = await getCurrentEnv();
-	if (!env || !env.token || !env.session) {
+	if (!env || !env.token) {
 		console.error(chalk.red("\n❌ Not authenticated. Please login first."));
 		console.log(chalk.yellow("   Run: boltic login"));
 		return;
@@ -523,7 +523,7 @@ async function handleGitTypeCreate(
 
 	// Get authentication credentials first
 	const env = await getCurrentEnv();
-	if (!env || !env.token || !env.session) {
+	if (!env || !env.token) {
 		console.error(chalk.red("\n❌ Not authenticated. Please login first."));
 		console.log(chalk.yellow("   Run: boltic login"));
 		// Cleanup the created directory

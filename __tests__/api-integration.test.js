@@ -140,7 +140,12 @@ describe("Integration API", () => {
 			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
 
-		it("should handle missing session", async () => {
+		it("should succeed with token but no session (PAT mode)", async () => {
+			// When session is absent, token is treated as a PAT (x-boltic-token header).
+			// This is valid auth — the API call should proceed.
+			const mockResponse = { data: { data: [] }, status: 200 };
+			mockAxios.mockResolvedValue(mockResponse);
+
 			await integrationApi.getIntegrationGroups(
 				validParams.apiUrl,
 				validParams.accountId,
@@ -148,10 +153,14 @@ describe("Integration API", () => {
 				null
 			);
 
-			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				"\x1b[31mError:\x1b[0m Authentication credentials are required."
+			expect(processExitSpy).not.toHaveBeenCalled();
+			expect(mockAxios).toHaveBeenCalledWith(
+				expect.objectContaining({
+					headers: expect.objectContaining({
+						"x-boltic-token": validParams.token,
+					}),
+				})
 			);
-			expect(processExitSpy).toHaveBeenCalledWith(1);
 		});
 
 		it("should handle missing accountId", async () => {

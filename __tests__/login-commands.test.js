@@ -153,7 +153,7 @@ describe("Login Commands", () => {
 			);
 
 			expect(mockStoreSecret).toHaveBeenCalledWith(
-				"pat",
+				"token",
 				"test-pat-token"
 			);
 			expect(mockStoreSecret).toHaveBeenCalledWith(

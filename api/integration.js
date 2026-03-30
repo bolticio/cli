@@ -3,7 +3,6 @@ import FormData from "form-data";
 import fs from "fs";
 import https from "https";
 import { handleError } from "../helper/error.js";
-import { getSecret } from "../helper/secure-storage.js";
 import { logApi } from "../helper/verbose.js";
 
 const getHttpsAgentForUrl = (baseUrl) => {
@@ -23,33 +22,20 @@ const getHttpsAgentForUrl = (baseUrl) => {
 	return undefined;
 };
 
-const buildAuthHeaders = async (token, session) => {
-	const pat = await getSecret("pat");
-
-	// If PAT exists, prefer PAT-based auth and do not send bearer/session
-	if (pat && pat.trim()) {
-		return {
-			"x-boltic-token": pat.trim(),
-		};
-	}
-
-	// Fallback to existing Bearer + Cookie auth
-	const headers = {};
-	if (token) {
-		headers.Authorization = `Bearer ${token}`;
-	}
+// When session is absent the token is a PAT → use x-boltic-token header.
+// When session is present the token is a bearer token → use Authorization + Cookie.
+const buildAuthHeaders = (token, session) => {
 	if (session) {
+		const headers = {};
+		if (token) headers.Authorization = `Bearer ${token}`;
 		headers.Cookie = session;
+		return headers;
 	}
-	return headers;
+	return token ? { "x-boltic-token": token } : {};
 };
 
-const ensureAuthenticatedOrExit = async (accountId, token, session) => {
-	const pat = await getSecret("pat");
-	const hasPatAuth = pat && pat.trim() && accountId;
-	const hasSessionAuth = token && session && accountId;
-
-	if (!hasPatAuth && !hasSessionAuth) {
+const ensureAuthenticatedOrExit = (accountId, token) => {
+	if (!token || !accountId) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -61,8 +47,8 @@ const ensureAuthenticatedOrExit = async (accountId, token, session) => {
 
 const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const axiosOptions = {
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integration-groups`,
@@ -87,8 +73,8 @@ const getIntegrationGroups = async (apiUrl, accountId, token, session) => {
 
 const listAllIntegrations = async (apiUrl, token, accountId, session) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const axiosOptions = {
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations`,
@@ -119,8 +105,8 @@ const saveIntegration = async (
 	integration
 ) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations`,
@@ -140,8 +126,8 @@ const saveIntegration = async (
 const editIntegration = async (apiUrl, token, accountId, session, payload) => {
 	const { id } = payload;
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}/edit`,
@@ -167,8 +153,8 @@ const updateIntegration = async (
 	integration
 ) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const { id, ...rest } = integration;
 		const response = await axios({
 			method: "patch",
@@ -194,8 +180,8 @@ const getIntegrationById = async (
 	integrationId
 ) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integrationId}`,
@@ -219,8 +205,8 @@ const getAuthenticationByIntegrationId = async (
 	integrationId
 ) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}integrations/${integrationId}/authentication`,
@@ -243,14 +229,7 @@ const getWebhooksByIntegrationId = async (
 	session,
 	integrationId
 ) => {
-	if (!token || !session || !accountId) {
-		console.error(
-			"\x1b[31mError:\x1b[0m Authentication credentials are required."
-		);
-		console.log("\n🔹 Please log in first using:");
-		console.log("\x1b[32m$ boltic login\x1b[0m\n");
-		process.exit(1); // Exit the CLI with an error code
-	}
+	ensureAuthenticatedOrExit(accountId, token);
 
 	try {
 		const response = await axios({
@@ -258,8 +237,7 @@ const getWebhooksByIntegrationId = async (
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}integrations/${integrationId}/webhooks`,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -277,8 +255,8 @@ const getConfigurationByIntegrationId = async (
 	integrationId
 ) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}integrations/${integrationId}/configuration`,
@@ -302,8 +280,8 @@ const syncIntegration = async (
 	integration
 ) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integration.integration_id}/deploy`,
@@ -328,15 +306,14 @@ const sendIntegrationForReview = async (
 	integration
 ) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
+		ensureAuthenticatedOrExit(accountId, token);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integration-reviews`,
 			data: integration,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -349,8 +326,8 @@ const sendIntegrationForReview = async (
 const purgeCache = async (apiUrl, token, accountId, session, integration) => {
 	const { integration_id } = integration;
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "post",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${integration_id}/cache`,
@@ -369,8 +346,8 @@ const purgeCache = async (apiUrl, token, accountId, session, integration) => {
 
 const pullIntegration = async (apiUrl, token, accountId, session, id) => {
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const response = await axios({
 			method: "get",
 			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}/pull`,
@@ -399,8 +376,8 @@ const uploadFileToCloud = async (
 	}
 
 	try {
-		await ensureAuthenticatedOrExit(accountId, token, session);
-		const authHeaders = await buildAuthHeaders(token, session);
+		ensureAuthenticatedOrExit(accountId, token);
+		const authHeaders = buildAuthHeaders(token, session);
 		const form = new FormData();
 		form.append("files", fs.createReadStream(filePath));
 

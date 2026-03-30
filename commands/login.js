@@ -234,17 +234,17 @@ async function handlePatLogin(patFromArg, accountIdFromArg) {
 	// If both values are provided via CLI flags, do not prompt at all.
 	if (pat && accountId) {
 		try {
-			await storeSecret("pat", pat);
+			await storeSecret("token", pat);
 			await storeSecret("account_id", accountId);
 			console.log(
 				chalk.green(
-					"\n✅ PAT token and Account ID stored securely. They will be used for future organization-related requests.\n"
+					"\n✅ Token and Account ID stored securely. They will be used for future organization-related requests.\n"
 				)
 			);
 		} catch (error) {
 			console.error(
 				chalk.red(
-					`\n❌ Failed to store PAT credentials: ${error.message || error}\n`
+					`\n❌ Failed to store credentials: ${error.message || error}\n`
 				)
 			);
 		}
@@ -271,7 +271,7 @@ async function handlePatLogin(patFromArg, accountIdFromArg) {
 	}
 
 	try {
-		await storeSecret("pat", pat);
+		await storeSecret("token", pat);
 		await storeSecret("account_id", accountId);
 		console.log(
 			chalk.green(

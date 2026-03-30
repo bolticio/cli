@@ -22,6 +22,31 @@ const getHttpsAgentForUrl = (baseUrl) => {
 	return undefined;
 };
 
+// When session is absent the token is a PAT → use x-boltic-token header.
+// When session is present the token is a bearer token → use Authorization + Cookie.
+const buildAuthHeaders = (token, session) => {
+	if (session) {
+		const headers = {};
+		if (token) headers.Authorization = `Bearer ${token}`;
+		headers.Cookie = session;
+		return headers;
+	}
+	return token ? { "x-boltic-token": token } : {};
+};
+
+// Returns true when the user has sufficient credentials for any auth method.
+// Pass accountId when the endpoint requires it; omit (undefined) when it doesn't.
+// Passing null means "required but missing" → returns false.
+const isAuthenticated = (token, session, accountId) => {
+	if (accountId !== undefined) {
+		// PAT auth: token + accountId (no session needed)
+		// Bearer auth: token + session + accountId
+		return !!(token && accountId);
+	}
+	// For endpoints that don't need accountId: PAT needs just token, bearer needs token+session
+	return !!token;
+};
+
 const listAllServerless = async (
 	apiUrl,
 	token,
@@ -29,7 +54,7 @@ const listAllServerless = async (
 	session,
 	query = null
 ) => {
-	if (!token || !session || !accountId) {
+	if (!isAuthenticated(token, session, accountId)) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -56,8 +81,7 @@ const listAllServerless = async (
 			params,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};
@@ -75,7 +99,7 @@ const listAllServerless = async (
 };
 
 const pullServerless = async (apiUrl, token, accountId, session, id) => {
-	if (!token || !session || !accountId) {
+	if (!isAuthenticated(token, session, accountId)) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -91,8 +115,7 @@ const pullServerless = async (apiUrl, token, accountId, session, id) => {
 			url,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
@@ -104,7 +127,7 @@ const pullServerless = async (apiUrl, token, accountId, session, id) => {
 };
 
 const publishServerless = async (apiUrl, token, session, payload) => {
-	if (!token || !session) {
+	if (!isAuthenticated(token, session)) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -119,8 +142,7 @@ const publishServerless = async (apiUrl, token, session, payload) => {
 			url: `${apiUrl}/service/panel/serverless/v1.0/apps`,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			data: payload,
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
@@ -142,7 +164,7 @@ const updateServerless = async (
 	serverlessId,
 	payload
 ) => {
-	if (!token || !session) {
+	if (!isAuthenticated(token, session)) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -157,8 +179,7 @@ const updateServerless = async (
 			url: `${apiUrl}/service/panel/serverless/v1.0/apps/${serverlessId}`,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			data: payload,
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
@@ -181,7 +202,7 @@ const getServerlessBuilds = async (
 	serverlessId,
 	options = {}
 ) => {
-	if (!token || !session || !accountId) {
+	if (!isAuthenticated(token, session, accountId)) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -201,8 +222,7 @@ const getServerlessBuilds = async (
 			},
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};
@@ -223,7 +243,7 @@ const getServerlessLogs = async (
 	serverlessId,
 	options = {}
 ) => {
-	if (!token || !session || !accountId) {
+	if (!isAuthenticated(token, session, accountId)) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -252,8 +272,7 @@ const getServerlessLogs = async (
 			params,
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};
@@ -274,7 +293,7 @@ const getBuildLogs = async (
 	serverlessId,
 	buildId
 ) => {
-	if (!token || !session || !accountId) {
+	if (!isAuthenticated(token, session, accountId)) {
 		console.error(
 			"\x1b[31mError:\x1b[0m Authentication credentials are required."
 		);
@@ -294,8 +313,7 @@ const getBuildLogs = async (
 			},
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`,
-				Cookie: session,
+				...buildAuthHeaders(token, session),
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		};

@@ -73,6 +73,17 @@ jest.mock("child_process", () => ({
 	execSync: mockExecSync,
 }));
 
+// Mock helper/secure-storage — return null PAT by default so API tests use
+// bearer/cookie auth rather than hitting the real OS keychain.
+const mockGetSecret = jest.fn().mockResolvedValue(null);
+jest.mock("../helper/secure-storage.js", () => ({
+	getSecret: mockGetSecret,
+	getAllSecrets: jest.fn().mockResolvedValue(null),
+	storeSecret: jest.fn().mockResolvedValue(undefined),
+	deleteSecret: jest.fn().mockResolvedValue(true),
+	deleteAllSecrets: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Mock helper/env
 jest.mock("../helper/env.js", () => ({
 	getCurrentEnv: mockGetCurrentEnv,

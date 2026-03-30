@@ -34,22 +34,22 @@ describe("Secure Storage", () => {
 			);
 		});
 
-		it("should handle storage errors", async () => {
-			const mockConsoleError = jest
-				.spyOn(console, "error")
+		it("should handle storage errors by warning instead of throwing", async () => {
+			const mockConsoleWarn = jest
+				.spyOn(console, "warn")
 				.mockImplementation(() => {});
 			mockKeytar.setPassword.mockRejectedValue(
 				new Error("Storage failed")
 			);
 
+			// Should NOT throw — warns instead so CI workflows aren't broken
 			await expect(
 				secureStorage.storeSecret("test-key", "test-value")
-			).rejects.toThrow("Storage failed");
-			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining("Error storing secret for test-key:"),
-				"Storage failed"
+			).resolves.toBeUndefined();
+			expect(mockConsoleWarn).toHaveBeenCalledWith(
+				expect.stringContaining("Could not store 'test-key'")
 			);
-			mockConsoleError.mockRestore();
+			mockConsoleWarn.mockRestore();
 		});
 	});
 
@@ -74,23 +74,14 @@ describe("Secure Storage", () => {
 			expect(result).toBeNull();
 		});
 
-		it("should handle retrieval errors", async () => {
-			const mockConsoleError = jest
-				.spyOn(console, "error")
-				.mockImplementation(() => {});
+		it("should fall back to env vars when keytar fails", async () => {
 			mockKeytar.getPassword.mockRejectedValue(
 				new Error("Retrieval failed")
 			);
 
+			// With no env var set, returns null silently
 			const result = await secureStorage.getSecret("test-key");
-
 			expect(result).toBeNull();
-			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining("Error retrieving secret"),
-				"Retrieval failed"
-			);
-
-			mockConsoleError.mockRestore();
 		});
 	});
 
@@ -143,31 +134,22 @@ describe("Secure Storage", () => {
 			);
 		});
 
-		it("should return empty array when no secrets found", async () => {
+		it("should fall back to env vars when keytar returns empty", async () => {
 			mockKeytar.findCredentials.mockResolvedValue([]);
 
+			// No env vars set in test environment → returns null
 			const result = await secureStorage.getAllSecrets();
-
-			expect(result).toEqual([]);
+			expect(result).toBeNull();
 		});
 
-		it("should handle retrieval errors", async () => {
-			const mockConsoleError = jest
-				.spyOn(console, "error")
-				.mockImplementation(() => {});
+		it("should fall back to env vars when keytar throws", async () => {
 			mockKeytar.findCredentials.mockRejectedValue(
 				new Error("Find failed")
 			);
 
+			// No env vars set in test environment → returns null silently
 			const result = await secureStorage.getAllSecrets();
-
 			expect(result).toBeNull();
-			expect(mockConsoleError).toHaveBeenCalledWith(
-				expect.stringContaining("Error retrieving all secrets"),
-				"Find failed"
-			);
-
-			mockConsoleError.mockRestore();
 		});
 	});
 
