@@ -152,10 +152,10 @@ describe("Serverless Helper Functions", () => {
 
 		it("should export LANGUAGE_VERSIONS", () => {
 			expect(serverlessHelper.LANGUAGE_VERSIONS).toEqual({
-				nodejs: "20",
+				nodejs: "24",
 				python: "3",
-				golang: "1.22",
-				java: "17",
+				golang: "1.24",
+				java: "21",
 			});
 		});
 
@@ -903,7 +903,7 @@ describe("Serverless Helper Functions", () => {
 			expect(files[0].path).toBe("autogen_index.go");
 			expect(files[1].path).toBe("go.mod");
 			expect(files[1].content).toContain("module test-app");
-			expect(files[1].content).toContain("go 1.22");
+			expect(files[1].content).toContain("go 1.24");
 		});
 
 		it("should generate pom.xml for java", () => {
