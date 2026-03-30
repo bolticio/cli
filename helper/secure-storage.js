@@ -1,9 +1,11 @@
+import fs from "fs";
+import os from "os";
+import path from "path";
+
 const SERVICE_NAME = "boltic-cli";
 
 // Mapping from credential keys to environment variable names.
-// In CI/headless environments where keytar (OS keychain) is unavailable,
-// these env vars are used as a fallback so commands like `boltic serverless publish`
-// work without an interactive keychain daemon.
+// Checked last (lowest priority) so explicit login always wins.
 const ENV_VAR_MAP = {
 	token: "BOLTIC_TOKEN",
 	account_id: "BOLTIC_ACCOUNT_ID",
@@ -11,10 +13,31 @@ const ENV_VAR_MAP = {
 	environment: "BOLTIC_ENVIRONMENT",
 };
 
+// File-based credential store used when keytar (OS keychain) is unavailable.
+// Credentials are stored as plain JSON, readable only by the current user.
+const CRED_FILE = path.join(os.homedir(), ".boltic", "credentials.json");
+
+const readCredFile = () => {
+	try {
+		return JSON.parse(fs.readFileSync(CRED_FILE, "utf-8"));
+	} catch {
+		return {};
+	}
+};
+
+const writeCredFile = (data) => {
+	const dir = path.dirname(CRED_FILE);
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+	}
+	fs.writeFileSync(CRED_FILE, JSON.stringify(data, null, 2), {
+		mode: 0o600,
+	});
+};
+
 // Lazy-load keytar via dynamic import so that a missing native dependency
 // (e.g. libsecret on Linux CI runners) is caught at call time rather than
 // crashing the process at startup with ERR_DLOPEN_FAILED.
-// The result is cached after the first attempt.
 let _keytar;
 let _keytarAttempted = false;
 
@@ -31,36 +54,28 @@ const getKeytar = async () => {
 };
 
 /**
- * Store a secret value securely using keytar.
- * In CI/headless environments where keytar is unavailable, logs a warning
- * instead of throwing so that env-var-based auth can still be used.
+ * Store a secret value.
+ * Priority: keytar (OS keychain) → file store (~/.boltic/credentials.json)
  */
 export const storeSecret = async (key, value) => {
 	const keytar = await getKeytar();
-	if (!keytar) {
-		console.warn(
-			`Warning: System keychain is unavailable. Could not store '${key}'.`
-		);
-		console.warn(
-			`In CI environments, set credentials via environment variables (e.g. BOLTIC_TOKEN, BOLTIC_ACCOUNT_ID).`
-		);
-		return;
+	if (keytar) {
+		try {
+			await keytar.setPassword(SERVICE_NAME, key, value);
+			return;
+		} catch {
+			// fall through to file store
+		}
 	}
-	try {
-		await keytar.setPassword(SERVICE_NAME, key, value);
-	} catch (error) {
-		console.warn(
-			`Warning: Could not store '${key}' in system keychain: ${error.message}`
-		);
-		console.warn(
-			`In CI environments, set credentials via environment variables (e.g. BOLTIC_TOKEN, BOLTIC_ACCOUNT_ID).`
-		);
-	}
+	// File-based fallback (CI / headless environments)
+	const data = readCredFile();
+	data[key] = value;
+	writeCredFile(data);
 };
 
 /**
- * Retrieve a secret value. Tries keytar first; falls back to env vars
- * (BOLTIC_TOKEN, BOLTIC_ACCOUNT_ID, etc.) when keytar is unavailable.
+ * Retrieve a secret value.
+ * Priority: keytar → file store → environment variables
  */
 export const getSecret = async (key) => {
 	const keytar = await getKeytar();
@@ -69,29 +84,42 @@ export const getSecret = async (key) => {
 			const val = await keytar.getPassword(SERVICE_NAME, key);
 			if (val !== null) return val;
 		} catch {
-			// keytar failed — fall through to env var
+			// fall through
 		}
 	}
+	// File store fallback
+	const val = readCredFile()[key];
+	if (val != null) return val;
+	// Env var fallback
 	return process.env[ENV_VAR_MAP[key]] || null;
 };
 
 /**
- * Delete a secret value using keytar.
+ * Delete a secret value.
+ * Priority: keytar → file store
  */
 export const deleteSecret = async (key) => {
 	const keytar = await getKeytar();
-	if (!keytar) return false;
-	try {
-		return await keytar.deletePassword(SERVICE_NAME, key);
-	} catch (error) {
-		console.error(`Error deleting secret for ${key}:`, error.message);
-		return false;
+	if (keytar) {
+		try {
+			return await keytar.deletePassword(SERVICE_NAME, key);
+		} catch (error) {
+			console.error(`Error deleting secret for ${key}:`, error.message);
+			return false;
+		}
 	}
+	// File store fallback
+	const data = readCredFile();
+	if (key in data) {
+		delete data[key];
+		writeCredFile(data);
+	}
+	return true;
 };
 
 /**
- * Retrieve all secrets. Tries keytar first; falls back to env vars when
- * keytar is unavailable (e.g. GitHub Actions, Docker containers).
+ * Retrieve all secrets.
+ * Priority: keytar → file store → environment variables
  */
 export const getAllSecrets = async () => {
 	const keytar = await getKeytar();
@@ -100,11 +128,18 @@ export const getAllSecrets = async () => {
 			const keytarSecrets = await keytar.findCredentials(SERVICE_NAME);
 			if (keytarSecrets && keytarSecrets.length > 0) return keytarSecrets;
 		} catch {
-			// keytar failed — fall through to env vars
+			// fall through
 		}
 	}
-
-	// Build credential list from env vars
+	// File store fallback
+	const fileData = readCredFile();
+	if (Object.keys(fileData).length > 0) {
+		return Object.entries(fileData).map(([account, password]) => ({
+			account,
+			password,
+		}));
+	}
+	// Env var fallback
 	const secrets = [];
 	for (const [key, envVar] of Object.entries(ENV_VAR_MAP)) {
 		if (process.env[envVar]) {
@@ -116,12 +151,25 @@ export const getAllSecrets = async () => {
 
 export const deleteAllSecrets = async () => {
 	try {
-		const secrets = await getAllSecrets();
-		if (secrets && secrets.length > 0) {
-			const deletionPromises = secrets.map(
-				async ({ account }) => await deleteSecret(account)
-			);
-			await Promise.all(deletionPromises);
+		const keytar = await getKeytar();
+		if (keytar) {
+			try {
+				const secrets = await keytar.findCredentials(SERVICE_NAME);
+				if (secrets && secrets.length > 0) {
+					await Promise.all(
+						secrets.map(({ account }) =>
+							keytar.deletePassword(SERVICE_NAME, account)
+						)
+					);
+					return;
+				}
+			} catch {
+				// fall through to file store
+			}
+		}
+		// File store fallback
+		if (fs.existsSync(CRED_FILE)) {
+			fs.unlinkSync(CRED_FILE);
 		}
 	} catch (error) {
 		console.error(`Error deleting all secrets:`, error.message);
