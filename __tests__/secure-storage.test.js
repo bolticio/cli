@@ -1,6 +1,8 @@
 import { jest } from "@jest/globals";
 
-// Mock keytar before importing the module
+// Mock keytar before importing the module.
+// With dynamic import() inside secure-storage.js, jest.mock still intercepts
+// because Babel transforms import() to require() in the test environment.
 const mockKeytar = {
 	setPassword: jest.fn(),
 	getPassword: jest.fn(),

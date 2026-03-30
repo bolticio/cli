@@ -1,5 +1,3 @@
-import keytar from "keytar";
-
 const SERVICE_NAME = "boltic-cli";
 
 // Mapping from credential keys to environment variable names.
@@ -13,20 +11,44 @@ const ENV_VAR_MAP = {
 	environment: "BOLTIC_ENVIRONMENT",
 };
 
+// Lazy-load keytar via dynamic import so that a missing native dependency
+// (e.g. libsecret on Linux CI runners) is caught at call time rather than
+// crashing the process at startup with ERR_DLOPEN_FAILED.
+// The result is cached after the first attempt.
+let _keytar;
+let _keytarAttempted = false;
+
+const getKeytar = async () => {
+	if (_keytarAttempted) return _keytar;
+	_keytarAttempted = true;
+	try {
+		_keytar = (await import("keytar")).default;
+	} catch {
+		// Native library not available (e.g. libsecret missing on CI runners).
+		_keytar = null;
+	}
+	return _keytar;
+};
+
 /**
  * Store a secret value securely using keytar.
  * In CI/headless environments where keytar is unavailable, logs a warning
  * instead of throwing so that env-var-based auth can still be used.
- * @param {string} key - The key under which to store the secret
- * @param {string} value - The secret value to store
- * @returns {Promise<void>}
  */
 export const storeSecret = async (key, value) => {
+	const keytar = await getKeytar();
+	if (!keytar) {
+		console.warn(
+			`Warning: System keychain is unavailable. Could not store '${key}'.`
+		);
+		console.warn(
+			`In CI environments, set credentials via environment variables (e.g. BOLTIC_TOKEN, BOLTIC_ACCOUNT_ID).`
+		);
+		return;
+	}
 	try {
 		await keytar.setPassword(SERVICE_NAME, key, value);
 	} catch (error) {
-		// In headless/CI environments the OS keychain daemon is not available.
-		// Warn instead of throwing so callers can still rely on env var fallback.
 		console.warn(
 			`Warning: Could not store '${key}' in system keychain: ${error.message}`
 		);
@@ -38,26 +60,27 @@ export const storeSecret = async (key, value) => {
 
 /**
  * Retrieve a secret value. Tries keytar first; falls back to env vars
- * (BOLTIC_TOKEN, BOLTIC_PAT, BOLTIC_ACCOUNT_ID, etc.) when keytar is unavailable.
- * @param {string} key - The key of the secret to retrieve
- * @returns {Promise<string|null>} The secret value or null if not found
+ * (BOLTIC_TOKEN, BOLTIC_ACCOUNT_ID, etc.) when keytar is unavailable.
  */
 export const getSecret = async (key) => {
-	try {
-		const val = await keytar.getPassword(SERVICE_NAME, key);
-		if (val !== null) return val;
-	} catch {
-		// keytar unavailable (CI/headless) — fall through to env var
+	const keytar = await getKeytar();
+	if (keytar) {
+		try {
+			const val = await keytar.getPassword(SERVICE_NAME, key);
+			if (val !== null) return val;
+		} catch {
+			// keytar failed — fall through to env var
+		}
 	}
 	return process.env[ENV_VAR_MAP[key]] || null;
 };
 
 /**
- * Delete a secret value using keytar
- * @param {string} key - The key of the secret to delete
- * @returns {Promise<boolean>} True if deletion was successful
+ * Delete a secret value using keytar.
  */
 export const deleteSecret = async (key) => {
+	const keytar = await getKeytar();
+	if (!keytar) return false;
 	try {
 		return await keytar.deletePassword(SERVICE_NAME, key);
 	} catch (error) {
@@ -69,14 +92,16 @@ export const deleteSecret = async (key) => {
 /**
  * Retrieve all secrets. Tries keytar first; falls back to env vars when
  * keytar is unavailable (e.g. GitHub Actions, Docker containers).
- * @returns {Promise<Array<{account: string, password: string}>|null>}
  */
 export const getAllSecrets = async () => {
-	try {
-		const keytarSecrets = await keytar.findCredentials(SERVICE_NAME);
-		if (keytarSecrets && keytarSecrets.length > 0) return keytarSecrets;
-	} catch {
-		// keytar unavailable (CI/headless) — fall through to env vars
+	const keytar = await getKeytar();
+	if (keytar) {
+		try {
+			const keytarSecrets = await keytar.findCredentials(SERVICE_NAME);
+			if (keytarSecrets && keytarSecrets.length > 0) return keytarSecrets;
+		} catch {
+			// keytar failed — fall through to env vars
+		}
 	}
 
 	// Build credential list from env vars
