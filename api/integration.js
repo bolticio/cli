@@ -4,7 +4,7 @@ import fs from "fs";
 import https from "https";
 import { handleError } from "../helper/error.js";
 import { getSecret } from "../helper/secure-storage.js";
-import { logApi } from "../helper/verbose.js";
+import { logApi, logApiRequest, logApiResponse } from "../helper/verbose.js";
 
 const getHttpsAgentForUrl = (baseUrl) => {
 	try {
@@ -139,12 +139,14 @@ const saveIntegration = async (
 
 const editIntegration = async (apiUrl, token, accountId, session, payload) => {
 	const { id } = payload;
+	const url = `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}/edit`;
 	try {
 		await ensureAuthenticatedOrExit(accountId, token, session);
 		const authHeaders = await buildAuthHeaders(token, session);
+		logApiRequest("post", url, payload);
 		const response = await axios({
 			method: "post",
-			url: `${apiUrl}/service/panel/automation/v1.0/${accountId}/integrations/${id}/edit`,
+			url,
 			data: payload,
 			headers: {
 				"Content-Type": "application/json",
@@ -152,9 +154,10 @@ const editIntegration = async (apiUrl, token, accountId, session, payload) => {
 			},
 			httpsAgent: getHttpsAgentForUrl(apiUrl),
 		});
-
+		logApiResponse(response.status, response.data);
 		return response.data.data;
 	} catch (error) {
+		logApiResponse(error.response?.status, error.response?.data);
 		handleError(error);
 	}
 };

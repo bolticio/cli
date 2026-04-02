@@ -40,6 +40,8 @@ jest.mock("../helper/error.js", () => ({
 }));
 jest.mock("../helper/verbose.js", () => ({
 	logApi: mockLogApi,
+	logApiRequest: jest.fn(),
+	logApiResponse: jest.fn(),
 }));
 jest.mock("../helper/secure-storage.js", () => ({
 	getSecret: mockGetSecret,
