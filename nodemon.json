@@ -1,0 +1,8 @@
+{
+	"watch": ["commands/", "api/", "helper/", "utils/", "config/", "cli.js", "index.js"],
+	"ext": "js,json",
+	"ignore": ["node_modules/", "__tests__/", "coverage/", "*.test.js"],
+	"execMap": {
+		"js": "node"
+	}
+}
