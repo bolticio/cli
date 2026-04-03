@@ -1,6 +1,6 @@
 {
 	"name": "@boltic/cli",
-	"version": "1.0.43",
+	"version": "1.0.44",
 	"description": "Professional CLI for interacting with the Boltic platform — create, manage, and publish integrations, serverless functions, workflows, MCPs, and more with enterprise-grade features and a seamless developer experience",
 	"main": "index.js",
 	"bin": {
@@ -40,6 +40,7 @@
 	"scripts": {
 		"start": "node index.js",
 		"dev": "nodemon index.js",
+		"dev:debug": "nodemon --inspect index.js",
 		"test": "jest",
 		"test:watch": "jest --watch",
 		"test:coverage": "jest --coverage",

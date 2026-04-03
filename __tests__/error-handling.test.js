@@ -28,7 +28,6 @@ describe("Error Handling", () => {
 
 	describe("formatErrorMessage", () => {
 		it("should handle null/undefined errors", () => {
-			// This covers line 16 - unknown error when no error passed
 			errorHandler.handleError(null);
 
 			expect(console.error).toHaveBeenCalledWith(
@@ -38,12 +37,12 @@ describe("Error Handling", () => {
 			expect(process.exit).toHaveBeenCalledWith(1);
 		});
 
-		it("should handle validation errors (400 status)", () => {
-			// This covers lines 36-42 - validation error handling
+		it("should handle validation errors with flat message format", () => {
 			const error = {
 				response: {
 					status: 400,
 					data: { message: "Invalid input data" },
+					config: { method: "post", url: "/test" },
 				},
 			};
 
@@ -56,12 +55,35 @@ describe("Error Handling", () => {
 			expect(process.exit).toHaveBeenCalledWith(1);
 		});
 
+		it("should handle validation errors with backend error format", () => {
+			const error = {
+				response: {
+					status: 400,
+					data: {
+						error: {
+							code: 400,
+							message: "name is required",
+							meta: { errors: [] },
+						},
+					},
+					config: { method: "post", url: "/test" },
+				},
+			};
+
+			errorHandler.handleError(error);
+
+			expect(console.error).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Validation Error:"),
+				"name is required"
+			);
+		});
+
 		it("should handle validation errors without message", () => {
-			// This covers the default validation error message
 			const error = {
 				response: {
 					status: 400,
 					data: {},
+					config: { method: "post", url: "/test" },
 				},
 			};
 
@@ -74,7 +96,6 @@ describe("Error Handling", () => {
 		});
 
 		it("should handle server errors (>= 500)", () => {
-			// This covers lines 45-52 - server error handling
 			const error = {
 				response: {
 					status: 500,
@@ -83,6 +104,7 @@ describe("Error Handling", () => {
 							message: "Internal server error",
 						},
 					},
+					config: { method: "get", url: "/test" },
 				},
 			};
 
@@ -95,11 +117,11 @@ describe("Error Handling", () => {
 		});
 
 		it("should handle server errors without detailed message", () => {
-			// This covers the default server error message
 			const error = {
 				response: {
 					status: 503,
 					data: {},
+					config: { method: "get", url: "/test" },
 				},
 			};
 
@@ -112,7 +134,6 @@ describe("Error Handling", () => {
 		});
 
 		it("should handle ENOENT errors (config file not found)", () => {
-			// This covers line 72 - config error handling
 			const error = {
 				code: "ENOENT",
 				message: "File not found",
@@ -157,6 +178,7 @@ describe("Error Handling", () => {
 				response: {
 					status: 401,
 					data: { message: "Unauthorized access" },
+					config: { method: "get", url: "/test" },
 				},
 			};
 
@@ -174,6 +196,7 @@ describe("Error Handling", () => {
 				response: {
 					status: 403,
 					data: { message: "Access forbidden" },
+					config: { method: "get", url: "/test" },
 				},
 			};
 
@@ -197,28 +220,52 @@ describe("Error Handling", () => {
 			expect(process.exit).toHaveBeenCalledWith(1);
 		});
 
-		it("should handle API errors with default message", () => {
+		it("should handle not found errors with default message", () => {
 			const error = {
 				response: {
 					status: 404,
 					data: {},
+					config: { method: "get", url: "/test" },
 				},
 			};
 
 			errorHandler.handleError(error);
 
 			expect(console.error).toHaveBeenCalledWith(
-				expect.stringContaining("❌ API Error:"),
-				"API Error: 404"
+				expect.stringContaining("❌ Not Found:"),
+				"The requested resource was not found."
+			);
+		});
+
+		it("should handle not found errors with backend message", () => {
+			const error = {
+				response: {
+					status: 404,
+					data: {
+						error: {
+							code: 404,
+							message: "Integration not found with id: abc-123",
+							meta: { errors: [] },
+						},
+					},
+					config: { method: "post", url: "/test" },
+				},
+			};
+
+			errorHandler.handleError(error);
+
+			expect(console.error).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Not Found:"),
+				"Integration not found with id: abc-123"
 			);
 		});
 
 		it("should handle auth errors without data message", () => {
-			// This covers line 30 - the fallback message for auth errors
 			const error = {
 				response: {
 					status: 401,
-					data: {}, // No message property
+					data: {},
+					config: { method: "get", url: "/test" },
 				},
 			};
 
@@ -231,14 +278,72 @@ describe("Error Handling", () => {
 		});
 
 		it("should handle unknown errors without message property", () => {
-			// This covers line 81 - the fallback message for unknown errors
-			const error = {}; // No message property
+			const error = {};
 
 			errorHandler.handleError(error);
 
 			expect(console.error).toHaveBeenCalledWith(
 				expect.stringContaining("❌ Error:"),
 				"An unexpected error occurred"
+			);
+		});
+
+		it("should always log API response details for API errors", () => {
+			const error = {
+				response: {
+					status: 400,
+					data: {
+						error: {
+							code: 400,
+							message: "parent_id is required",
+							meta: { errors: [] },
+						},
+					},
+					config: { method: "post", url: "/integrations/123/edit" },
+				},
+			};
+
+			errorHandler.handleError(error);
+
+			// Should log the main error message
+			expect(console.error).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Validation Error:"),
+				"parent_id is required"
+			);
+			// Should also log the debug line with method, url, status
+			expect(console.error).toHaveBeenCalledWith(
+				expect.stringContaining("POST /integrations/123/edit → 400")
+			);
+			// Should also log the raw response
+			expect(console.error).toHaveBeenCalledWith(
+				expect.stringContaining("Response:")
+			);
+		});
+
+		it("should handle validation errors from meta.errors array", () => {
+			const error = {
+				response: {
+					status: 400,
+					data: {
+						error: {
+							code: 400,
+							meta: {
+								errors: [
+									"field 'name' is required",
+									"field 'status' must be draft or published",
+								],
+							},
+						},
+					},
+					config: { method: "post", url: "/test" },
+				},
+			};
+
+			errorHandler.handleError(error);
+
+			expect(console.error).toHaveBeenCalledWith(
+				expect.stringContaining("❌ Validation Error:"),
+				"field 'name' is required; field 'status' must be draft or published"
 			);
 		});
 	});
