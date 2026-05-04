@@ -2350,7 +2350,7 @@ async function handleStatus(args = []) {
 				lastStatus = status;
 			} else if (iteration % 3 === 0) {
 				// Show a dot every 3 iterations to indicate it's still polling
-				process.stdout.write(chalk.dim("."));
+				process.stdout.write(chalk.dim(".\n"));
 			}
 
 			// Check if we've reached a terminal state

@@ -14,10 +14,10 @@ import ora from "ora";
 // Supported languages and their versions
 export const SUPPORTED_LANGUAGES = ["nodejs", "python", "golang", "java"];
 export const LANGUAGE_VERSIONS = {
-	nodejs: "20",
+	nodejs: "24",
 	python: "3",
-	golang: "1.22",
-	java: "17",
+	golang: "1.24",
+	java: "21",
 };
 
 // Handler mapping per language
@@ -935,7 +935,7 @@ public class AutogenIndex {
 function getGoModContent(appName) {
 	return `module ${appName}
 
-go 1.22
+go 1.24
 `;
 }
 
