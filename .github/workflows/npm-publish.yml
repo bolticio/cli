@@ -25,6 +25,12 @@ jobs:
                   node-version: 20
                   registry-url: https://registry.npmjs.org/
             - run: npm ci
-            - run: npm publish
+            - run: |
+                  VERSION=$(node -p "require('./package.json').version")
+                  if [[ "$VERSION" == *-* ]]; then
+                    npm publish --access public --tag next
+                  else
+                    npm publish --access public
+                  fi
               env:
                   NODE_AUTH_TOKEN: ${{secrets.npm_token}}

@@ -1,6 +1,6 @@
 {
 	"name": "@boltic/cli",
-	"version": "1.0.45",
+	"version": "1.0.46",
 	"description": "Professional CLI for interacting with the Boltic platform — create, manage, and publish integrations, serverless functions, workflows, MCPs, and more with enterprise-grade features and a seamless developer experience",
 	"main": "index.js",
 	"bin": {

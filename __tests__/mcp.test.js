@@ -150,6 +150,37 @@ describe("MCP Commands", () => {
 		expect(json.mcpServers.curSrv).toEqual({ url: "https://sse" });
 	});
 
+	it("writes Cursor config with parsed headers", async () => {
+		const { default: Mcp } = await import("../commands/mcp.js");
+		const writes = [];
+		jest.mocked(fs.existsSync).mockReturnValue(false);
+		jest.mocked(fs.mkdirSync).mockImplementation(() => {});
+		jest.mocked(fs.readFileSync).mockImplementation(() => "{}\n");
+		jest.mocked(fs.writeFileSync).mockImplementation((p, c) =>
+			writes.push({ p, c })
+		);
+
+		await Mcp.execute([
+			"setup",
+			"https://sse",
+			"cursorSrv",
+			"--client",
+			"cursor",
+			"--header",
+			"Authorization: Bearer abc123",
+		]);
+
+		const last = writes[writes.length - 1];
+		expect(last.p).toMatch(/\.cursor\/mcp\.json$/);
+		const json = JSON.parse(last.c);
+		expect(json.mcpServers.cursorSrv).toEqual({
+			url: "https://sse",
+			headers: {
+				Authorization: "Bearer abc123",
+			},
+		});
+	});
+
 	it("writes LibreChat YAML file (content generation delegated)", async () => {
 		const { default: Mcp } = await import("../commands/mcp.js");
 		const writes = [];

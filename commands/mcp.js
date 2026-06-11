@@ -57,8 +57,9 @@ async function handleSetup(args) {
 	const url = args[0];
 	let name = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
 
-	// Parse flags: --client, --name
+	// Parse flags: --client, --name, --header
 	let client = "claude";
+	const headerValues = [];
 	for (let i = 0; i < args.length; i++) {
 		const token = args[i];
 		if (
@@ -79,7 +80,25 @@ async function handleSetup(args) {
 			i++;
 		} else if (token.startsWith("--name=")) {
 			name = token.split("=")[1];
+		} else if (
+			token === "--header" &&
+			args[i + 1] &&
+			!args[i + 1].startsWith("--")
+		) {
+			headerValues.push(args[i + 1]);
+			i++;
+		} else if (token.startsWith("--header=")) {
+			headerValues.push(token.split("=")[1]);
 		}
+	}
+
+	let headers = {};
+	try {
+		headers = parseHeaders(headerValues);
+	} catch (error) {
+		console.log(chalk.red("\n❌ Error occurred while parsing headers:"));
+		console.log(chalk.red(`   ${error.message}`));
+		return;
 	}
 
 	if (!url) {
@@ -103,7 +122,7 @@ async function handleSetup(args) {
 		const mcpUrl = url;
 		const command = `composio --sse "${mcpUrl}"`;
 
-		saveMcpConfig(url, client, newKey, mcpUrl, command);
+		saveMcpConfig(url, client, newKey, mcpUrl, command, headers);
 
 		console.log(
 			chalk.cyan(
@@ -125,7 +144,29 @@ async function handleSetup(args) {
 	}
 }
 
-function saveMcpConfig(url, clientType, name, mcpUrl, command) {
+function parseHeaders(headerValues) {
+	return headerValues.reduce((acc, headerValue) => {
+		const separatorIndex = headerValue.indexOf(":");
+		if (separatorIndex === -1) {
+			throw new Error(
+				`Invalid header format "${headerValue}". Use "Header-Name: value".`
+			);
+		}
+
+		const name = headerValue.slice(0, separatorIndex).trim();
+		const value = headerValue.slice(separatorIndex + 1).trim();
+		if (!name) {
+			throw new Error(
+				`Invalid header format "${headerValue}". Header name cannot be empty.`
+			);
+		}
+
+		acc[name] = value;
+		return acc;
+	}, {});
+}
+
+function saveMcpConfig(url, clientType, name, mcpUrl, command, headers = {}) {
 	const config = {
 		command: "npx",
 		args: ["-y", "mcp-remote", mcpUrl],
@@ -133,6 +174,10 @@ function saveMcpConfig(url, clientType, name, mcpUrl, command) {
 			npm_config_yes: "true",
 		},
 	};
+
+	if (Object.keys(headers).length > 0) {
+		config.headers = headers;
+	}
 
 	const sseConfig = {
 		url: mcpUrl,
@@ -364,6 +409,9 @@ function handleFileClient(clientConfig, serverName, config, mcpUrl) {
 		const sseConfig = {
 			url: mcpUrl,
 		};
+		if (config.headers) {
+			sseConfig.headers = config.headers;
+		}
 		existingConfig.mcpServers[serverName] = sseConfig;
 	} else {
 		existingConfig.mcpServers[serverName] = config;
