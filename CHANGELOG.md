@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.46
+## 1.0.46-dev.0.1
 
 ### Fixed
 - Fixed MCP setup so `--header` values are preserved in generated MCP configuration.
