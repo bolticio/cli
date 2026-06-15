@@ -175,8 +175,12 @@ function saveMcpConfig(url, clientType, name, mcpUrl, command, headers = {}) {
 		},
 	};
 
+	// mcp-remote reads auth headers from argv, not a config key.
+	// A `headers` key on a stdio (command/args) server is silently ignored.
 	if (Object.keys(headers).length > 0) {
-		config.headers = headers;
+		for (const [name, value] of Object.entries(headers)) {
+			config.args.push("--header", `${name}: ${value}`);
+		}
 	}
 
 	const sseConfig = {
@@ -310,7 +314,7 @@ function saveMcpConfig(url, clientType, name, mcpUrl, command, headers = {}) {
 	} else if (clientConfig.type === "yaml") {
 		handleYamlClient(clientConfig, newKey, config);
 	} else {
-		handleFileClient(clientConfig, newKey, config, mcpUrl);
+		handleFileClient(clientConfig, newKey, config, mcpUrl, headers);
 	}
 }
 
@@ -379,7 +383,13 @@ function handleYamlClient(clientConfig, serverName, config) {
 	console.log(chalk.green(`✅ Configuration saved to: ${clientConfig.path}`));
 }
 
-function handleFileClient(clientConfig, serverName, config, mcpUrl) {
+function handleFileClient(
+	clientConfig,
+	serverName,
+	config,
+	mcpUrl,
+	headers = {}
+) {
 	if (!clientConfig.path) {
 		throw new Error("Path not specified for file client");
 	}
@@ -409,8 +419,8 @@ function handleFileClient(clientConfig, serverName, config, mcpUrl) {
 		const sseConfig = {
 			url: mcpUrl,
 		};
-		if (config.headers) {
-			sseConfig.headers = config.headers;
+		if (Object.keys(headers).length > 0) {
+			sseConfig.headers = headers;
 		}
 		existingConfig.mcpServers[serverName] = sseConfig;
 	} else {

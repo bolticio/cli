@@ -495,4 +495,38 @@ describe("MCP Commands", () => {
 		// restore
 		jest.mocked(path.join).mockImplementation((...args) => args.join("/"));
 	});
+
+	it("folds headers into mcp-remote args for stdio clients (claude)", async () => {
+		const { default: Mcp } = await import("../commands/mcp.js");
+		const writes = [];
+		jest.mocked(fs.existsSync).mockReturnValue(false);
+		jest.mocked(fs.mkdirSync).mockImplementation(() => {});
+		jest.mocked(fs.readFileSync).mockImplementation(() => "{}\n");
+		jest.mocked(fs.writeFileSync).mockImplementation((p, c) =>
+			writes.push({ p, c })
+		);
+
+		await Mcp.execute([
+			"setup",
+			"http://sse",
+			"srv",
+			"--client",
+			"claude",
+			"--header",
+			"Authorization: Bearer abc123",
+		]);
+
+		const last = writes[writes.length - 1];
+		const json = JSON.parse(last.c);
+		// header must live in argv, never as a stdio `headers` key
+		expect(json.mcpServers.srv.headers).toBeUndefined();
+		expect(json.mcpServers.srv.args).toEqual(
+			expect.arrayContaining([
+				"mcp-remote",
+				"http://sse",
+				"--header",
+				"Authorization: Bearer abc123",
+			])
+		);
+	});
 });
